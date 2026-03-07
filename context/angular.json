@@ -1,0 +1,36 @@
+{
+  ".ts": {
+    "stack": "Angular",
+    "description": "TypeScript framework with dependency injection, RxJS, and strong conventions.",
+    "conversion_guidance": [
+      "Use standalone components for modern Angular unless module architecture is required.",
+      "Keep templates declarative and avoid heavy logic in HTML.",
+      "Use RxJS operators and async pipes over manual subscriptions when possible.",
+      "Define interfaces for API DTOs and strict typing throughout.",
+      "Use Angular CLI conventions for generated structure."
+    ],
+    "project_structure": [
+      "src/app/features",
+      "src/app/shared",
+      "src/app/core"
+    ],
+    "testing": [
+      "Jasmine/Karma or Jest for units",
+      "Cypress/Playwright for E2E"
+    ],
+    "documentation_links": [
+      {
+        "title": "Angular Docs",
+        "url": "https://angular.dev/"
+      },
+      {
+        "title": "RxJS Docs",
+        "url": "https://rxjs.dev/"
+      },
+      {
+        "title": "Angular Style Guide",
+        "url": "https://angular.dev/style-guide"
+      }
+    ]
+  }
+}

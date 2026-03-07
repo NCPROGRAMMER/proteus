@@ -1,0 +1,37 @@
+{
+  ".py": {
+    "stack": "Django",
+    "description": "Batteries-included Python web framework.",
+    "conversion_guidance": [
+      "Preserve project/app separation and settings modularization.",
+      "Use models for domain rules and avoid business logic in views where possible.",
+      "Use serializers/forms for validation and clean input handling.",
+      "Maintain migrations and schema consistency.",
+      "Use URLConf organization with app-level routing includes."
+    ],
+    "project_structure": [
+      "project/settings",
+      "apps/<app_name>/",
+      "templates/",
+      "static/"
+    ],
+    "testing": [
+      "Django TestCase or pytest-django",
+      "factory libraries for fixtures"
+    ],
+    "documentation_links": [
+      {
+        "title": "Django Docs",
+        "url": "https://docs.djangoproject.com/"
+      },
+      {
+        "title": "Django REST Framework",
+        "url": "https://www.django-rest-framework.org/"
+      },
+      {
+        "title": "Django Deployment Checklist",
+        "url": "https://docs.djangoproject.com/en/stable/howto/deployment/checklist/"
+      }
+    ]
+  }
+}

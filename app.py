@@ -5,6 +5,7 @@ import tempfile
 import asyncio
 import httpx
 import re
+import json
 from html import unescape
 from typing import List, Dict, Any, Optional
 from urllib.parse import quote_plus
@@ -35,88 +36,91 @@ ALLOWED_EXTENSIONS = {
     '.dockerfile', '.tf', '.tfvars', '.md', '.txt',
 }
 
-STACK_CONTEXTS = {
-    "react": (
-        "React context: favor componentized architecture, hooks, controlled inputs, and memoization only where profiling suggests need. "
-        "For modern apps prefer TypeScript, React Router, and query/state libraries (TanStack Query/Redux Toolkit) where useful."
-    ),
-    "next": (
-        "Next.js context: choose App Router conventions, Server Components by default, route handlers for APIs, and server actions where appropriate. "
-        "Respect data-fetch caching/revalidation and environment separation for server/client code."
-    ),
-    "vue": (
-        "Vue context: use Composition API with script setup, Pinia for state when shared state is needed, and computed/watch idioms over ad-hoc mutation."
-    ),
-    "nuxt": (
-        "Nuxt context: follow pages/layouts auto-routing, composables, Nitro server routes, and runtime config patterns. "
-        "Prefer framework primitives over custom boilerplate."
-    ),
-    "angular": (
-        "Angular context: preserve module/standalone component structure, dependency injection patterns, RxJS best practices, and strict typing."
-    ),
-    "svelte": (
-        "Svelte/SvelteKit context: leverage reactive declarations, stores, load functions, and file-based routing conventions."
-    ),
-    "spring": (
-        "Spring Boot context: generate complete Maven/Gradle project structure, controller-service-repository layering, DTO/entity boundaries, "
-        "validation, and application properties with clear profiles."
-    ),
-    "java": (
-        "Java context: strong typing, package organization, interfaces where useful, tested exception handling, and buildable project files."
-    ),
-    "python": (
-        "Python context: idiomatic packaging, type hints, virtual-env friendly dependencies, and clear module boundaries."
-    ),
-    "django": (
-        "Django context: project/app split, settings module hygiene, models-views-templates separation, migrations, and URLConf organization."
-    ),
-    "flask": (
-        "Flask context: app factory pattern, blueprints for modularity, configuration classes, and extension initialization patterns."
-    ),
-    "fastapi": (
-        "FastAPI context: pydantic models for IO contracts, dependency injection, async endpoints where needed, and clear router separation."
-    ),
-    "node": (
-        "Node.js context: choose ESM/CJS consistently, package scripts, dotenv/config handling, and robust lint/test setup."
-    ),
-    "express": (
-        "Express context: middleware layering, centralized error handlers, route modules, and validation/auth concerns separated cleanly."
-    ),
-    "nestjs": (
-        "NestJS context: module/controller/service patterns, DTO validation via class-validator, and provider-driven architecture."
-    ),
-    "dotnet": (
-        ".NET context: solution/project organization, dependency injection, configuration providers, and clean API/service boundaries."
-    ),
-    "rails": (
-        "Ruby on Rails context: MVC conventions, migrations, strong params, and idiomatic ActiveRecord/service object usage."
-    ),
-    "laravel": (
-        "Laravel context: artisan-friendly structure, controllers/services, request validation, Eloquent relationships, and config/.env conventions."
-    ),
-    "go": (
-        "Go context: package-by-feature where practical, explicit errors, interfaces at boundaries, and go.mod-aware project layout."
-    ),
-    "rust": (
-        "Rust context: ownership-safe patterns, crate/module organization, trait-based abstractions, and Cargo project completeness."
-    ),
-    "kubernetes": (
-        "Kubernetes/DevOps context: provide deployment/service/ingress manifests, env/config secrets strategy, and health/readiness checks."
-    ),
-}
+CONTEXT_DIR = os.path.join(os.path.dirname(__file__), "context")
+MAPPER_PATH = os.path.join(CONTEXT_DIR, "mapper.json")
 
 
-def build_stack_context(user_instructions: str) -> str:
-    instruction_text = (user_instructions or "").lower()
-    selected_contexts = [
-        f"- {context}"
-        for key, context in STACK_CONTEXTS.items()
-        if key in instruction_text
-    ]
-    if not selected_contexts:
+def _load_context_mapper() -> Dict[str, Any]:
+    try:
+        with open(MAPPER_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"⚠️ Unable to load context mapper: {type(e).__name__} - {e}")
+        return {}
+
+
+def _load_context_payload(file_name: str) -> Dict[str, Any]:
+    path = os.path.join(CONTEXT_DIR, file_name)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"⚠️ Unable to load context file {file_name}: {type(e).__name__} - {e}")
+        return {}
+
+
+def _pick_context_files(filename: str, ext: str, instructions: str, mapper: Dict[str, Any]) -> List[str]:
+    extension_map = mapper.get("extension_map", {})
+    filename_map = mapper.get("filename_map", {})
+    keyword_priority = mapper.get("instruction_keyword_priority", {})
+    max_files = int(mapper.get("max_context_files_per_prompt", 2) or 2)
+
+    candidates: List[str] = []
+    for file_name in filename_map.get(filename.lower(), []):
+        if file_name not in candidates:
+            candidates.append(file_name)
+    for file_name in extension_map.get(ext, []):
+        if file_name not in candidates:
+            candidates.append(file_name)
+
+    if not candidates:
+        return []
+
+    lowered_instructions = (instructions or "").lower()
+    ranked: List[str] = []
+    for context_file in candidates:
+        keywords = keyword_priority.get(context_file, [])
+        if any(keyword in lowered_instructions for keyword in keywords):
+            ranked.append(context_file)
+
+    ordered = ranked + [c for c in candidates if c not in ranked]
+    return ordered[:max_files]
+
+
+def build_stack_context(user_instructions: str, filename: str) -> str:
+    ext = os.path.splitext(filename)[1].lower()
+    mapper = _load_context_mapper()
+    context_files = _pick_context_files(filename, ext, user_instructions, mapper)
+    if not context_files:
         return ""
 
-    return "TECH STACK CONVERSION GUIDANCE:\n" + "\n".join(selected_contexts)
+    lines = ["TECH STACK CONVERSION GUIDANCE (extension mapped):"]
+    for context_file in context_files:
+        payload = _load_context_payload(context_file)
+        if not payload:
+            continue
+
+        root_key = next(iter(payload.keys()))
+        details = payload.get(root_key, {})
+        stack = details.get("stack", context_file)
+        lines.append(f"- Context file: context/{context_file} (root extension key: {root_key}, stack: {stack})")
+
+        description = details.get("description", "").strip()
+        if description:
+            lines.append(f"  Description: {description}")
+
+        for item in details.get("conversion_guidance", [])[:6]:
+            lines.append(f"  Guidance: {item}")
+
+        docs = details.get("documentation_links", [])[:4]
+        if docs:
+            lines.append("  Docs:")
+            for doc in docs:
+                title = doc.get("title", "Reference")
+                url = doc.get("url", "")
+                lines.append(f"    - {title}: {url}")
+
+    return "\n".join(lines)
 
 
 def _flatten_related_topics(items: List[Dict[str, Any]]) -> List[Dict[str, str]]:
@@ -338,7 +342,7 @@ async def process_file(
     user_prompt = (
         f"CURRENT FILE: {filename}\n"
         f"INSTRUCTION: {user_instructions}\n"
-        f"{build_stack_context(user_instructions)}\n"
+        f"{build_stack_context(user_instructions, filename)}\n"
         f"{(web_context or '').strip()}\n\n"
         f"CONTENT:\n{content}"
     )

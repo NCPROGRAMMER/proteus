@@ -1,0 +1,39 @@
+{
+  ".jsx": {
+    "stack": "React",
+    "description": "UI library for component-driven SPAs and interactive frontends.",
+    "conversion_guidance": [
+      "Prefer functional components and hooks over class components.",
+      "Co-locate component, styles, tests, and stories when possible.",
+      "Use controlled inputs for forms and memoization only when profiling indicates bottlenecks.",
+      "Use React Router for SPA navigation and clearly separate route-level and feature-level components.",
+      "Prefer strict TypeScript adoption for medium/large codebases where feasible."
+    ],
+    "project_structure": [
+      "src/components for reusable UI blocks",
+      "src/features for domain modules",
+      "src/hooks for reusable logic",
+      "src/services or src/api for server calls",
+      "src/routes for route definitions"
+    ],
+    "testing": [
+      "React Testing Library for behavior tests",
+      "Vitest/Jest for unit tests",
+      "Playwright/Cypress for end-to-end tests"
+    ],
+    "documentation_links": [
+      {
+        "title": "React Docs",
+        "url": "https://react.dev/"
+      },
+      {
+        "title": "React Router",
+        "url": "https://reactrouter.com/"
+      },
+      {
+        "title": "Redux Toolkit",
+        "url": "https://redux-toolkit.js.org/"
+      }
+    ]
+  }
+}

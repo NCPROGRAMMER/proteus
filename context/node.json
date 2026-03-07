@@ -1,0 +1,37 @@
+{
+  ".js": {
+    "stack": "Node.js",
+    "description": "JavaScript runtime for backend services and tooling.",
+    "conversion_guidance": [
+      "Choose ESM or CJS and keep module system consistent.",
+      "Use structured scripts in package.json for build/test/lint.",
+      "Centralize configuration and environment variable parsing.",
+      "Separate business logic from transport concerns.",
+      "Use linting, formatting, and typed tooling (TypeScript or JSDoc) where useful."
+    ],
+    "project_structure": [
+      "src/",
+      "src/routes or controllers",
+      "src/services",
+      "src/config"
+    ],
+    "testing": [
+      "Jest/Vitest",
+      "Supertest for API contracts"
+    ],
+    "documentation_links": [
+      {
+        "title": "Node.js Docs",
+        "url": "https://nodejs.org/docs/latest/api/"
+      },
+      {
+        "title": "npm Docs",
+        "url": "https://docs.npmjs.com/"
+      },
+      {
+        "title": "TypeScript Docs",
+        "url": "https://www.typescriptlang.org/docs/"
+      }
+    ]
+  }
+}

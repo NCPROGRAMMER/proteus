@@ -1,0 +1,39 @@
+{
+  ".vue": {
+    "stack": "Nuxt",
+    "description": "Vue meta-framework with server rendering and conventions-first project structure.",
+    "conversion_guidance": [
+      "Use pages and layouts conventions for routing and shell composition.",
+      "Use composables and auto-imported utilities consistently.",
+      "Use Nitro server routes instead of ad-hoc backend wiring where possible.",
+      "Keep runtime configuration in nuxt.config and environment variables.",
+      "Follow Nuxt module ecosystem before custom plumbing."
+    ],
+    "project_structure": [
+      "pages/",
+      "layouts/",
+      "components/",
+      "composables/",
+      "server/api/"
+    ],
+    "testing": [
+      "Vitest for units",
+      "@nuxt/test-utils where appropriate",
+      "Playwright for E2E"
+    ],
+    "documentation_links": [
+      {
+        "title": "Nuxt Docs",
+        "url": "https://nuxt.com/docs"
+      },
+      {
+        "title": "Nuxt Directory Structure",
+        "url": "https://nuxt.com/docs/guide/directory-structure/app"
+      },
+      {
+        "title": "Nitro",
+        "url": "https://nitro.unjs.io/"
+      }
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+{
+  ".svelte": {
+    "stack": "Svelte/SvelteKit",
+    "description": "Compiler-first UI framework and full-stack app framework.",
+    "conversion_guidance": [
+      "Use reactive statements and stores for state flow.",
+      "Use SvelteKit file-based routing conventions for pages and endpoints.",
+      "Keep data loading in load functions and avoid duplicating fetch logic.",
+      "Use form actions and server endpoints for mutations when beneficial.",
+      "Keep components focused and leverage runes/reactivity idioms in modern Svelte."
+    ],
+    "project_structure": [
+      "src/routes",
+      "src/lib",
+      "src/lib/components",
+      "src/lib/server"
+    ],
+    "testing": [
+      "Vitest for units",
+      "Playwright for E2E"
+    ],
+    "documentation_links": [
+      {
+        "title": "Svelte Docs",
+        "url": "https://svelte.dev/docs"
+      },
+      {
+        "title": "SvelteKit Docs",
+        "url": "https://kit.svelte.dev/docs"
+      },
+      {
+        "title": "Svelte Tutorial",
+        "url": "https://svelte.dev/tutorial"
+      }
+    ]
+  }
+}

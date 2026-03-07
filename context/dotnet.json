@@ -1,0 +1,38 @@
+{
+  ".cs": {
+    "stack": ".NET",
+    "description": "Microsoft platform for APIs, services, and enterprise applications.",
+    "conversion_guidance": [
+      "Use clean layering and dependency injection via built-in container.",
+      "Prefer async/await for I/O operations.",
+      "Use strongly typed configuration and options patterns.",
+      "Use minimal APIs or controllers consistently in a project.",
+      "Include structured logging and health checks."
+    ],
+    "project_structure": [
+      "src/Api",
+      "src/Application",
+      "src/Domain",
+      "src/Infrastructure",
+      "tests/"
+    ],
+    "testing": [
+      "xUnit/NUnit",
+      "integration tests with WebApplicationFactory"
+    ],
+    "documentation_links": [
+      {
+        "title": ".NET Docs",
+        "url": "https://learn.microsoft.com/dotnet/"
+      },
+      {
+        "title": "ASP.NET Core",
+        "url": "https://learn.microsoft.com/aspnet/core/"
+      },
+      {
+        "title": "Entity Framework Core",
+        "url": "https://learn.microsoft.com/ef/core/"
+      }
+    ]
+  }
+}

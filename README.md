@@ -6,7 +6,7 @@ A local, containerized web application that uses a Large Language Model (LLM) to
 
 - **Local by Default:** Refactoring runs against your local Ollama model.
 - **Optional Web Research:** If enabled, the app fetches public web snippets to enrich context.
-- **Stack-Aware Prompting:** Adds targeted framework/language conversion context for popular stacks (React, Next.js, Vue, Nuxt, Spring Boot, Django, Flask, FastAPI, and more).
+- **Stack-Aware Prompting:** Loads framework/language context from JSON files in `context/` using extension and filename mapping rules.
 - **Zip or Single File Input:** Upload either a source code zip or one supported code/config file, and get a refactored zip back.
 - **Multi-File Aware:** Can generate entirely new project structures (e.g., Python to Java ports).
 - **Hardware Agnostic:** Runs on standard Linux servers (CPU) or NVIDIA-equipped workstations (GPU).
@@ -65,6 +65,9 @@ winpty docker exec -it ollama_backend ollama pull qwen2.5-coder:14b
 ├── docker-compose.yml     # Standard CPU/Universal config
 ├── docker-compose.gpu.yml # NVIDIA GPU config
 ├── requirements.txt       # Python dependencies
+├── context/              # Stack context JSON files + mapper
+│   ├── mapper.json       # Extension/filename to context-file mapping
+│   └── *.json            # Detailed stack guidance and docs links
 └── templates/
     └── index.html         # Frontend UI
 ```

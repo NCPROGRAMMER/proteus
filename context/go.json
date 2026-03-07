@@ -1,0 +1,38 @@
+{
+  ".go": {
+    "stack": "Go",
+    "description": "Compiled language for cloud services and systems software.",
+    "conversion_guidance": [
+      "Keep packages cohesive and avoid cyclical dependencies.",
+      "Return explicit errors and wrap with context.",
+      "Use interfaces at boundaries and keep them small.",
+      "Use context.Context for request-scoped cancellation and deadlines.",
+      "Prefer standard library first, then minimal dependencies."
+    ],
+    "project_structure": [
+      "cmd/",
+      "internal/",
+      "pkg/ (optional)",
+      "api/",
+      "configs/"
+    ],
+    "testing": [
+      "go test with table-driven tests",
+      "integration tests for handlers and persistence"
+    ],
+    "documentation_links": [
+      {
+        "title": "Go Docs",
+        "url": "https://go.dev/doc/"
+      },
+      {
+        "title": "Effective Go",
+        "url": "https://go.dev/doc/effective_go"
+      },
+      {
+        "title": "Go Modules",
+        "url": "https://go.dev/ref/mod"
+      }
+    ]
+  }
+}

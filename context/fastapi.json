@@ -1,0 +1,38 @@
+{
+  ".py": {
+    "stack": "FastAPI",
+    "description": "Python API framework focused on type hints and OpenAPI generation.",
+    "conversion_guidance": [
+      "Use Pydantic models for all request and response contracts.",
+      "Prefer APIRouter modules per domain.",
+      "Use dependency injection for cross-cutting concerns and auth.",
+      "Use async endpoints for I/O-bound operations and avoid blocking calls in async paths.",
+      "Include startup/shutdown event handling and health endpoints."
+    ],
+    "project_structure": [
+      "app/main.py",
+      "app/api/routers",
+      "app/schemas",
+      "app/services",
+      "app/core/config"
+    ],
+    "testing": [
+      "pytest + httpx TestClient",
+      "contract tests for response schemas"
+    ],
+    "documentation_links": [
+      {
+        "title": "FastAPI Docs",
+        "url": "https://fastapi.tiangolo.com/"
+      },
+      {
+        "title": "Pydantic Docs",
+        "url": "https://docs.pydantic.dev/"
+      },
+      {
+        "title": "Starlette Docs",
+        "url": "https://www.starlette.io/"
+      }
+    ]
+  }
+}

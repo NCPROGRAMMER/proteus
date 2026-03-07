@@ -1,0 +1,38 @@
+{
+  ".tsx": {
+    "stack": "Next.js",
+    "description": "React framework with routing, server rendering, and full-stack capabilities.",
+    "conversion_guidance": [
+      "Use App Router conventions (app directory) for new projects.",
+      "Prefer Server Components by default; move to Client Components only when browser APIs are needed.",
+      "Use Route Handlers for API endpoints and server actions where appropriate.",
+      "Respect caching and revalidation controls for data fetching.",
+      "Keep server-only secrets out of client bundles."
+    ],
+    "project_structure": [
+      "app/ for routed segments",
+      "app/api for route handlers",
+      "components/ for reusable UI",
+      "lib/ for utility and data access",
+      "middleware.ts for edge controls when needed"
+    ],
+    "testing": [
+      "Jest/Vitest for unit tests",
+      "Playwright for app-level flows"
+    ],
+    "documentation_links": [
+      {
+        "title": "Next.js Docs",
+        "url": "https://nextjs.org/docs"
+      },
+      {
+        "title": "App Router Guide",
+        "url": "https://nextjs.org/docs/app"
+      },
+      {
+        "title": "Data Fetching",
+        "url": "https://nextjs.org/docs/app/building-your-application/data-fetching"
+      }
+    ]
+  }
+}
