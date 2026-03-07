@@ -1,0 +1,205 @@
+{
+  "extension_map": {
+    ".jsx": [
+      "react.json"
+    ],
+    ".tsx": [
+      "next.json",
+      "react.json"
+    ],
+    ".vue": [
+      "vue.json",
+      "nuxt.json"
+    ],
+    ".svelte": [
+      "svelte.json"
+    ],
+    ".java": [
+      "spring-boot.json"
+    ],
+    ".py": [
+      "python.json",
+      "django.json",
+      "flask.json",
+      "fastapi.json"
+    ],
+    ".js": [
+      "node.json",
+      "express.json"
+    ],
+    ".mjs": [
+      "node.json",
+      "express.json"
+    ],
+    ".cjs": [
+      "node.json",
+      "express.json"
+    ],
+    ".ts": [
+      "nestjs.json",
+      "angular.json",
+      "node.json"
+    ],
+    ".cs": [
+      "dotnet.json"
+    ],
+    ".rb": [
+      "rails.json"
+    ],
+    ".php": [
+      "laravel.json"
+    ],
+    ".go": [
+      "go.json"
+    ],
+    ".rs": [
+      "rust.json"
+    ],
+    ".yaml": [
+      "kubernetes.json"
+    ],
+    ".yml": [
+      "kubernetes.json"
+    ],
+    ".tf": [
+      "terraform.json"
+    ],
+    ".tfvars": [
+      "terraform.json"
+    ],
+    ".graphql": [
+      "graphql.json"
+    ],
+    ".gql": [
+      "graphql.json"
+    ],
+    ".swift": [
+      "swift.json"
+    ]
+  },
+  "filename_map": {
+    "pom.xml": [
+      "spring-boot.json"
+    ],
+    "build.gradle": [
+      "spring-boot.json"
+    ],
+    "build.gradle.kts": [
+      "spring-boot.json"
+    ],
+    "manage.py": [
+      "django.json"
+    ],
+    "asgi.py": [
+      "django.json",
+      "fastapi.json"
+    ],
+    "wsgi.py": [
+      "django.json",
+      "flask.json"
+    ],
+    "nuxt.config.ts": [
+      "nuxt.json"
+    ],
+    "nuxt.config.js": [
+      "nuxt.json"
+    ],
+    "next.config.js": [
+      "next.json"
+    ],
+    "next.config.mjs": [
+      "next.json"
+    ],
+    "angular.json": [
+      "angular.json"
+    ],
+    "package.json": [
+      "node.json"
+    ]
+  },
+  "instruction_keyword_priority": {
+    "next.json": [
+      "next",
+      "next.js"
+    ],
+    "react.json": [
+      "react"
+    ],
+    "vue.json": [
+      "vue"
+    ],
+    "nuxt.json": [
+      "nuxt"
+    ],
+    "angular.json": [
+      "angular"
+    ],
+    "svelte.json": [
+      "svelte",
+      "sveltekit"
+    ],
+    "spring-boot.json": [
+      "spring boot",
+      "spring",
+      "java"
+    ],
+    "python.json": [
+      "python"
+    ],
+    "django.json": [
+      "django"
+    ],
+    "flask.json": [
+      "flask"
+    ],
+    "fastapi.json": [
+      "fastapi"
+    ],
+    "node.json": [
+      "node",
+      "nodejs"
+    ],
+    "express.json": [
+      "express"
+    ],
+    "nestjs.json": [
+      "nestjs",
+      "nest"
+    ],
+    "dotnet.json": [
+      ".net",
+      "dotnet",
+      "asp.net"
+    ],
+    "rails.json": [
+      "rails",
+      "ruby on rails"
+    ],
+    "laravel.json": [
+      "laravel",
+      "php"
+    ],
+    "go.json": [
+      "golang",
+      "go"
+    ],
+    "rust.json": [
+      "rust"
+    ],
+    "kubernetes.json": [
+      "kubernetes",
+      "k8s"
+    ],
+    "terraform.json": [
+      "terraform"
+    ],
+    "graphql.json": [
+      "graphql",
+      "apollo"
+    ],
+    "swift.json": [
+      "swift"
+    ]
+  },
+  "max_context_files_per_prompt": 2
+}

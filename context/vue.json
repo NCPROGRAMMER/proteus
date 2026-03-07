@@ -1,0 +1,38 @@
+{
+  ".vue": {
+    "stack": "Vue",
+    "description": "Progressive frontend framework with Single File Components.",
+    "conversion_guidance": [
+      "Use Composition API with <script setup> for new code.",
+      "Favor computed properties over imperative derivations in watchers.",
+      "Use Pinia for shared state and keep local state in components.",
+      "Organize composables for reusable logic.",
+      "Prefer explicit prop and emits typing."
+    ],
+    "project_structure": [
+      "src/components",
+      "src/views",
+      "src/composables",
+      "src/stores",
+      "src/router"
+    ],
+    "testing": [
+      "Vue Test Utils + Vitest",
+      "Playwright/Cypress for E2E"
+    ],
+    "documentation_links": [
+      {
+        "title": "Vue Docs",
+        "url": "https://vuejs.org/"
+      },
+      {
+        "title": "Pinia",
+        "url": "https://pinia.vuejs.org/"
+      },
+      {
+        "title": "Vue Router",
+        "url": "https://router.vuejs.org/"
+      }
+    ]
+  }
+}

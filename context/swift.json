@@ -1,0 +1,35 @@
+{
+  ".swift": {
+    "stack": "Swift",
+    "description": "Apple language for iOS/macOS apps and server-side development.",
+    "conversion_guidance": [
+      "Use value types and protocol-oriented design where possible.",
+      "Prefer structured concurrency with async/await.",
+      "Use Swift Package Manager for dependency and module management.",
+      "Keep UI and business logic separated with architecture patterns.",
+      "Handle optionals and error propagation explicitly."
+    ],
+    "project_structure": [
+      "Sources/",
+      "Tests/",
+      "Package.swift"
+    ],
+    "testing": [
+      "XCTest for unit/integration tests"
+    ],
+    "documentation_links": [
+      {
+        "title": "Swift Docs",
+        "url": "https://www.swift.org/documentation/"
+      },
+      {
+        "title": "Swift Book",
+        "url": "https://docs.swift.org/swift-book/"
+      },
+      {
+        "title": "Swift Package Manager",
+        "url": "https://www.swift.org/package-manager/"
+      }
+    ]
+  }
+}

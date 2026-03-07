@@ -1,0 +1,36 @@
+{
+  ".js": {
+    "stack": "Express",
+    "description": "Minimal Node.js web framework for APIs and web servers.",
+    "conversion_guidance": [
+      "Use middleware layering for auth, validation, and logging.",
+      "Separate routers/controllers/services/repositories.",
+      "Use centralized async error handling middleware.",
+      "Validate input at route boundaries.",
+      "Add graceful shutdown and health endpoints for production services."
+    ],
+    "project_structure": [
+      "src/routes",
+      "src/controllers",
+      "src/services",
+      "src/middleware"
+    ],
+    "testing": [
+      "Supertest + Jest/Vitest"
+    ],
+    "documentation_links": [
+      {
+        "title": "Express Docs",
+        "url": "https://expressjs.com/"
+      },
+      {
+        "title": "Node Best Practices",
+        "url": "https://github.com/goldbergyoni/nodebestpractices"
+      },
+      {
+        "title": "Helmet",
+        "url": "https://helmetjs.github.io/"
+      }
+    ]
+  }
+}

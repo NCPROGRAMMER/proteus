@@ -1,0 +1,39 @@
+{
+  ".java": {
+    "stack": "Java Spring Boot",
+    "description": "Enterprise Java framework for APIs, services, and microservices.",
+    "conversion_guidance": [
+      "Generate complete buildable project structure with pom.xml or build.gradle.",
+      "Use layered architecture: controller, service, repository, domain/entity, DTO.",
+      "Use validation annotations and explicit request/response DTO boundaries.",
+      "Configure profiles and application properties for environment separation.",
+      "Include exception handling via @ControllerAdvice and standardized error responses."
+    ],
+    "project_structure": [
+      "src/main/java/.../controller",
+      "src/main/java/.../service",
+      "src/main/java/.../repository",
+      "src/main/java/.../model and dto",
+      "src/main/resources/application.yml"
+    ],
+    "testing": [
+      "JUnit 5 + Mockito",
+      "Spring Boot test slices",
+      "Testcontainers for integration tests"
+    ],
+    "documentation_links": [
+      {
+        "title": "Spring Boot Docs",
+        "url": "https://docs.spring.io/spring-boot/index.html"
+      },
+      {
+        "title": "Spring Guides",
+        "url": "https://spring.io/guides"
+      },
+      {
+        "title": "Spring Data JPA",
+        "url": "https://spring.io/projects/spring-data-jpa"
+      }
+    ]
+  }
+}

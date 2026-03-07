@@ -27,8 +27,9 @@
         <h1>AI Refactor Tool</h1>
         <form id="refactorForm">
             <div class="form-group">
-                <label>1. Upload Project (.zip)</label>
-                <input type="file" id="fileInput" accept=".zip" required>
+                <label>1. Upload Project (.zip) or Single Source File</label>
+                <input type="file" id="fileInput" accept=".zip,.py,.pyi,.ipynb,.js,.mjs,.cjs,.ts,.tsx,.jsx,.vue,.svelte,.html,.htm,.css,.scss,.sass,.less,.java,.kt,.kts,.groovy,.cpp,.cc,.cxx,.c,.h,.hpp,.cs,.fs,.rs,.go,.php,.rb,.swift,.scala,.json,.jsonc,.yaml,.yml,.toml,.ini,.env,.xml,.xsd,.xsl,.sql,.graphql,.gql,.sh,.bash,.zsh,.ps1,.bat,.dockerfile,.tf,.tfvars,.md,.txt" required>
+                <div class="hint">You can upload either a full project zip or a single code/config file.</div>
             </div>
             <div class="form-group">
                 <label>2. Instructions</label>

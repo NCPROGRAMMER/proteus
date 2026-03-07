@@ -1,0 +1,37 @@
+{
+  ".py": {
+    "stack": "Flask",
+    "description": "Minimal Python web framework with composable extensions.",
+    "conversion_guidance": [
+      "Use the app factory pattern for configurable initialization.",
+      "Split routes into blueprints by domain.",
+      "Use explicit configuration objects for environment separation.",
+      "Centralize extension initialization (db, migrate, auth, cache).",
+      "Use request validation and structured error responses."
+    ],
+    "project_structure": [
+      "app/__init__.py factory",
+      "app/blueprints",
+      "app/models",
+      "app/services"
+    ],
+    "testing": [
+      "pytest + flask testing client",
+      "integration tests for API contracts"
+    ],
+    "documentation_links": [
+      {
+        "title": "Flask Docs",
+        "url": "https://flask.palletsprojects.com/"
+      },
+      {
+        "title": "Werkzeug Docs",
+        "url": "https://werkzeug.palletsprojects.com/"
+      },
+      {
+        "title": "Flask Patterns",
+        "url": "https://flask.palletsprojects.com/en/latest/patterns/"
+      }
+    ]
+  }
+}

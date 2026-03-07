@@ -1,0 +1,37 @@
+{
+  ".rs": {
+    "stack": "Rust",
+    "description": "Systems language focused on memory safety and performance.",
+    "conversion_guidance": [
+      "Model ownership and borrowing clearly instead of cloning by default.",
+      "Use Result and Option with expressive error types.",
+      "Organize crates/modules around domain boundaries.",
+      "Prefer iterators and pattern matching for clarity.",
+      "Use async runtimes intentionally and avoid unnecessary blocking calls."
+    ],
+    "project_structure": [
+      "src/main.rs or lib.rs",
+      "src/modules",
+      "tests/",
+      "Cargo.toml"
+    ],
+    "testing": [
+      "cargo test",
+      "integration tests under tests/"
+    ],
+    "documentation_links": [
+      {
+        "title": "Rust Book",
+        "url": "https://doc.rust-lang.org/book/"
+      },
+      {
+        "title": "Rust API Docs",
+        "url": "https://doc.rust-lang.org/std/"
+      },
+      {
+        "title": "Cargo Book",
+        "url": "https://doc.rust-lang.org/cargo/"
+      }
+    ]
+  }
+}

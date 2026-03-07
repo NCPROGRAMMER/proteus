@@ -1,0 +1,38 @@
+{
+  ".graphql": {
+    "stack": "GraphQL",
+    "description": "Query language and runtime for typed API contracts.",
+    "conversion_guidance": [
+      "Design schema around client use cases and domain boundaries.",
+      "Prefer explicit types and avoid overloading root query fields.",
+      "Use DataLoader/batching patterns to avoid N+1 resolver issues.",
+      "Add pagination, filtering, and error conventions consistently.",
+      "Version behavior via deprecations rather than endpoint sprawl."
+    ],
+    "project_structure": [
+      "schema/",
+      "resolvers/",
+      "dataloaders/",
+      "modules/"
+    ],
+    "testing": [
+      "schema validation tests",
+      "resolver unit tests",
+      "integration tests for query/mutation flows"
+    ],
+    "documentation_links": [
+      {
+        "title": "GraphQL Docs",
+        "url": "https://graphql.org/learn/"
+      },
+      {
+        "title": "Apollo Server",
+        "url": "https://www.apollographql.com/docs/apollo-server/"
+      },
+      {
+        "title": "GraphQL Spec",
+        "url": "https://spec.graphql.org/"
+      }
+    ]
+  }
+}

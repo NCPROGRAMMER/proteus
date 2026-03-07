@@ -1,0 +1,38 @@
+{
+  ".tf": {
+    "stack": "Terraform",
+    "description": "Infrastructure-as-code tool for cloud resource provisioning.",
+    "conversion_guidance": [
+      "Use modules for reusable infrastructure units.",
+      "Separate environments via workspaces or directory patterns.",
+      "Use input variables with validation and outputs for composition.",
+      "Pin provider versions and module versions for reproducibility.",
+      "Avoid secrets in plain text and prefer secret managers."
+    ],
+    "project_structure": [
+      "main.tf",
+      "variables.tf",
+      "outputs.tf",
+      "modules/"
+    ],
+    "testing": [
+      "terraform fmt -check",
+      "terraform validate",
+      "terraform plan"
+    ],
+    "documentation_links": [
+      {
+        "title": "Terraform Docs",
+        "url": "https://developer.hashicorp.com/terraform/docs"
+      },
+      {
+        "title": "Terraform Language",
+        "url": "https://developer.hashicorp.com/terraform/language"
+      },
+      {
+        "title": "Terraform Registry",
+        "url": "https://registry.terraform.io/"
+      }
+    ]
+  }
+}

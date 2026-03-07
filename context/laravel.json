@@ -1,0 +1,37 @@
+{
+  ".php": {
+    "stack": "Laravel",
+    "description": "PHP framework with expressive syntax and rich ecosystem.",
+    "conversion_guidance": [
+      "Use controllers, form requests, services, and repositories where complexity warrants.",
+      "Use Eloquent relationships and scopes for data modeling.",
+      "Keep business rules outside controllers for maintainability.",
+      "Use queue/jobs for background processing.",
+      "Follow configuration and environment conventions strictly."
+    ],
+    "project_structure": [
+      "app/Http/Controllers",
+      "app/Models",
+      "app/Services",
+      "routes/web.php or api.php"
+    ],
+    "testing": [
+      "PHPUnit/Pest",
+      "feature tests for API and auth flows"
+    ],
+    "documentation_links": [
+      {
+        "title": "Laravel Docs",
+        "url": "https://laravel.com/docs"
+      },
+      {
+        "title": "Eloquent ORM",
+        "url": "https://laravel.com/docs/eloquent"
+      },
+      {
+        "title": "Laravel Queues",
+        "url": "https://laravel.com/docs/queues"
+      }
+    ]
+  }
+}

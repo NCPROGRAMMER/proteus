@@ -1,0 +1,38 @@
+{
+  ".rb": {
+    "stack": "Ruby on Rails",
+    "description": "Convention-over-configuration web framework for Ruby.",
+    "conversion_guidance": [
+      "Follow MVC conventions and RESTful resource routing.",
+      "Use ActiveRecord associations and validations intentionally.",
+      "Keep controllers lean; move heavy business logic into service objects where needed.",
+      "Use migrations and schema management best practices.",
+      "Use strong parameters and secure defaults."
+    ],
+    "project_structure": [
+      "app/models",
+      "app/controllers",
+      "app/views",
+      "app/services",
+      "config/routes.rb"
+    ],
+    "testing": [
+      "RSpec or Minitest",
+      "system tests with Capybara"
+    ],
+    "documentation_links": [
+      {
+        "title": "Rails Guides",
+        "url": "https://guides.rubyonrails.org/"
+      },
+      {
+        "title": "Rails API Docs",
+        "url": "https://api.rubyonrails.org/"
+      },
+      {
+        "title": "RSpec Rails",
+        "url": "https://github.com/rspec/rspec-rails"
+      }
+    ]
+  }
+}

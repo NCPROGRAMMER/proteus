@@ -1,0 +1,35 @@
+{
+  ".ts": {
+    "stack": "NestJS",
+    "description": "Node.js framework with module-based architecture and DI.",
+    "conversion_guidance": [
+      "Use modules/controllers/providers with clear boundaries.",
+      "Use DTO classes with class-validator for input validation.",
+      "Use guards/interceptors/filters for cross-cutting concerns.",
+      "Keep business logic in services and domain modules.",
+      "Use configuration module and environment validation."
+    ],
+    "project_structure": [
+      "src/modules",
+      "src/common",
+      "src/config"
+    ],
+    "testing": [
+      "Jest for units and e2e module tests"
+    ],
+    "documentation_links": [
+      {
+        "title": "NestJS Docs",
+        "url": "https://docs.nestjs.com/"
+      },
+      {
+        "title": "class-validator",
+        "url": "https://github.com/typestack/class-validator"
+      },
+      {
+        "title": "TypeORM",
+        "url": "https://typeorm.io/"
+      }
+    ]
+  }
+}

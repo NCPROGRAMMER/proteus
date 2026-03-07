@@ -1,0 +1,36 @@
+{
+  ".py": {
+    "stack": "Python",
+    "description": "General-purpose backend, automation, and data language.",
+    "conversion_guidance": [
+      "Use clear module boundaries and package organization.",
+      "Add type hints for public APIs and complex logic.",
+      "Prefer virtual environment aware dependency management and pinned requirements for reproducibility.",
+      "Separate pure logic from I/O orchestration for testability.",
+      "Use linting and formatting tools consistently."
+    ],
+    "project_structure": [
+      "src/ package layout when possible",
+      "tests/",
+      "pyproject.toml or requirements.txt"
+    ],
+    "testing": [
+      "pytest for unit/integration tests",
+      "mypy for static typing checks"
+    ],
+    "documentation_links": [
+      {
+        "title": "Python Docs",
+        "url": "https://docs.python.org/3/"
+      },
+      {
+        "title": "Packaging Guide",
+        "url": "https://packaging.python.org/"
+      },
+      {
+        "title": "pytest",
+        "url": "https://docs.pytest.org/"
+      }
+    ]
+  }
+}

@@ -5,6 +5,7 @@ import tempfile
 import asyncio
 import httpx
 import re
+import json
 from html import unescape
 from typing import List, Dict, Any, Optional
 from urllib.parse import quote_plus
@@ -23,10 +24,103 @@ MODEL_NAME = "qwen2.5-coder:14b"
 MAX_WEB_SNIPPET_CHARS = 320
 
 ALLOWED_EXTENSIONS = {
-    '.py', '.js', '.ts', '.tsx', '.jsx', '.html', '.css',
-    '.java', '.cpp', '.c', '.h', '.rs', '.go', '.php', '.rb',
-    '.json', '.yaml', '.yml', '.sql', '.md', '.txt'
+    '.py', '.pyi', '.ipynb',
+    '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.vue', '.svelte',
+    '.html', '.htm', '.css', '.scss', '.sass', '.less',
+    '.java', '.kt', '.kts', '.groovy',
+    '.cpp', '.cc', '.cxx', '.c', '.h', '.hpp',
+    '.cs', '.fs', '.rs', '.go', '.php', '.rb', '.swift', '.scala',
+    '.json', '.jsonc', '.yaml', '.yml', '.toml', '.ini', '.env',
+    '.xml', '.xsd', '.xsl', '.sql', '.graphql', '.gql',
+    '.sh', '.bash', '.zsh', '.ps1', '.bat',
+    '.dockerfile', '.tf', '.tfvars', '.md', '.txt',
 }
+
+CONTEXT_DIR = os.path.join(os.path.dirname(__file__), "context")
+MAPPER_PATH = os.path.join(CONTEXT_DIR, "mapper.json")
+
+
+def _load_context_mapper() -> Dict[str, Any]:
+    try:
+        with open(MAPPER_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"⚠️ Unable to load context mapper: {type(e).__name__} - {e}")
+        return {}
+
+
+def _load_context_payload(file_name: str) -> Dict[str, Any]:
+    path = os.path.join(CONTEXT_DIR, file_name)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"⚠️ Unable to load context file {file_name}: {type(e).__name__} - {e}")
+        return {}
+
+
+def _pick_context_files(filename: str, ext: str, instructions: str, mapper: Dict[str, Any]) -> List[str]:
+    extension_map = mapper.get("extension_map", {})
+    filename_map = mapper.get("filename_map", {})
+    keyword_priority = mapper.get("instruction_keyword_priority", {})
+    max_files = int(mapper.get("max_context_files_per_prompt", 2) or 2)
+
+    candidates: List[str] = []
+    for file_name in filename_map.get(filename.lower(), []):
+        if file_name not in candidates:
+            candidates.append(file_name)
+    for file_name in extension_map.get(ext, []):
+        if file_name not in candidates:
+            candidates.append(file_name)
+
+    if not candidates:
+        return []
+
+    lowered_instructions = (instructions or "").lower()
+    ranked: List[str] = []
+    for context_file in candidates:
+        keywords = keyword_priority.get(context_file, [])
+        if any(keyword in lowered_instructions for keyword in keywords):
+            ranked.append(context_file)
+
+    ordered = ranked + [c for c in candidates if c not in ranked]
+    return ordered[:max_files]
+
+
+def build_stack_context(user_instructions: str, filename: str) -> str:
+    ext = os.path.splitext(filename)[1].lower()
+    mapper = _load_context_mapper()
+    context_files = _pick_context_files(filename, ext, user_instructions, mapper)
+    if not context_files:
+        return ""
+
+    lines = ["TECH STACK CONVERSION GUIDANCE (extension mapped):"]
+    for context_file in context_files:
+        payload = _load_context_payload(context_file)
+        if not payload:
+            continue
+
+        root_key = next(iter(payload.keys()))
+        details = payload.get(root_key, {})
+        stack = details.get("stack", context_file)
+        lines.append(f"- Context file: context/{context_file} (root extension key: {root_key}, stack: {stack})")
+
+        description = details.get("description", "").strip()
+        if description:
+            lines.append(f"  Description: {description}")
+
+        for item in details.get("conversion_guidance", [])[:6]:
+            lines.append(f"  Guidance: {item}")
+
+        docs = details.get("documentation_links", [])[:4]
+        if docs:
+            lines.append("  Docs:")
+            for doc in docs:
+                title = doc.get("title", "Reference")
+                url = doc.get("url", "")
+                lines.append(f"    - {title}: {url}")
+
+    return "\n".join(lines)
 
 
 def _flatten_related_topics(items: List[Dict[str, Any]]) -> List[Dict[str, str]]:
@@ -248,6 +342,7 @@ async def process_file(
     user_prompt = (
         f"CURRENT FILE: {filename}\n"
         f"INSTRUCTION: {user_instructions}\n"
+        f"{build_stack_context(user_instructions, filename)}\n"
         f"{(web_context or '').strip()}\n\n"
         f"CONTENT:\n{content}"
     )
@@ -309,18 +404,30 @@ async def refactor_endpoint(
     web_search_results: int = Form(5),
 ):
     work_dir = tempfile.mkdtemp()
-    upload_zip = os.path.join(work_dir, "input.zip")
+    uploaded_path = os.path.join(work_dir, file.filename or "uploaded_input")
     extract_dir = os.path.join(work_dir, "source")
     output_zip = os.path.join(work_dir, "refactored.zip")
 
     os.makedirs(extract_dir, exist_ok=True)
 
     try:
-        with open(upload_zip, "wb") as f:
+        with open(uploaded_path, "wb") as f:
             shutil.copyfileobj(file.file, f)
 
-        with zipfile.ZipFile(upload_zip, 'r') as z:
-            z.extractall(extract_dir)
+        uploaded_ext = os.path.splitext(file.filename or "")[1].lower()
+        if uploaded_ext == ".zip":
+            with zipfile.ZipFile(uploaded_path, 'r') as z:
+                z.extractall(extract_dir)
+        else:
+            if uploaded_ext not in ALLOWED_EXTENSIONS:
+                return {
+                    "error": (
+                        f"Unsupported file type: {uploaded_ext or 'unknown'}. "
+                        "Upload a .zip or a supported source file extension."
+                    )
+                }
+            safe_name = os.path.basename(file.filename or f"uploaded{uploaded_ext}")
+            shutil.copy2(uploaded_path, os.path.join(extract_dir, safe_name))
 
         files_to_process = []
         for root, _, files in os.walk(extract_dir):

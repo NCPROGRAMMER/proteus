@@ -1,0 +1,36 @@
+{
+  ".yaml": {
+    "stack": "Kubernetes",
+    "description": "Container orchestration platform using declarative manifests.",
+    "conversion_guidance": [
+      "Define Deployment/StatefulSet, Service, and optional Ingress consistently.",
+      "Set resource requests/limits and probes for reliability.",
+      "Use ConfigMaps and Secrets for configuration separation.",
+      "Use labels/selectors consistently across manifests.",
+      "Include namespace and RBAC constraints where needed."
+    ],
+    "project_structure": [
+      "k8s/base",
+      "k8s/overlays",
+      "helm chart or kustomize config"
+    ],
+    "testing": [
+      "kubectl apply --dry-run=client",
+      "kubeconform/kubeval schema validation"
+    ],
+    "documentation_links": [
+      {
+        "title": "Kubernetes Docs",
+        "url": "https://kubernetes.io/docs/"
+      },
+      {
+        "title": "Kustomize",
+        "url": "https://kubectl.docs.kubernetes.io/references/kustomize/"
+      },
+      {
+        "title": "Helm Docs",
+        "url": "https://helm.sh/docs/"
+      }
+    ]
+  }
+}
