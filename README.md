@@ -6,7 +6,8 @@ A local, containerized web application that uses a Large Language Model (LLM) to
 
 - **Local by Default:** Refactoring runs against your local Ollama model.
 - **Optional Web Research:** If enabled, the app fetches public web snippets to enrich context.
-- **Zip-in, Zip-out:** Upload a source code zip, get a refactored zip back.
+- **Stack-Aware Prompting:** Adds targeted framework/language conversion context for popular stacks (React, Next.js, Vue, Nuxt, Spring Boot, Django, Flask, FastAPI, and more).
+- **Zip or Single File Input:** Upload either a source code zip or one supported code/config file, and get a refactored zip back.
 - **Multi-File Aware:** Can generate entirely new project structures (e.g., Python to Java ports).
 - **Hardware Agnostic:** Runs on standard Linux servers (CPU) or NVIDIA-equipped workstations (GPU).
 
@@ -48,7 +49,7 @@ winpty docker exec -it ollama_backend ollama pull qwen2.5-coder:14b
 ### 3. Usage
 
 1.  Open your browser to `http://localhost:8000`.
-2.  Upload a `.zip` file containing your code.
+2.  Upload either a `.zip` project archive or one supported source/config file.
 3.  Enter instructions (e.g., *"Add Typescript interfaces"* or *"Convert to Java Spring Boot"*).
 4.  (Optional) Enable **Add web research to prompt context**.
 5.  (Optional) Provide a custom query and web snippet count (1-10).

@@ -23,10 +23,100 @@ MODEL_NAME = "qwen2.5-coder:14b"
 MAX_WEB_SNIPPET_CHARS = 320
 
 ALLOWED_EXTENSIONS = {
-    '.py', '.js', '.ts', '.tsx', '.jsx', '.html', '.css',
-    '.java', '.cpp', '.c', '.h', '.rs', '.go', '.php', '.rb',
-    '.json', '.yaml', '.yml', '.sql', '.md', '.txt'
+    '.py', '.pyi', '.ipynb',
+    '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.vue', '.svelte',
+    '.html', '.htm', '.css', '.scss', '.sass', '.less',
+    '.java', '.kt', '.kts', '.groovy',
+    '.cpp', '.cc', '.cxx', '.c', '.h', '.hpp',
+    '.cs', '.fs', '.rs', '.go', '.php', '.rb', '.swift', '.scala',
+    '.json', '.jsonc', '.yaml', '.yml', '.toml', '.ini', '.env',
+    '.xml', '.xsd', '.xsl', '.sql', '.graphql', '.gql',
+    '.sh', '.bash', '.zsh', '.ps1', '.bat',
+    '.dockerfile', '.tf', '.tfvars', '.md', '.txt',
 }
+
+STACK_CONTEXTS = {
+    "react": (
+        "React context: favor componentized architecture, hooks, controlled inputs, and memoization only where profiling suggests need. "
+        "For modern apps prefer TypeScript, React Router, and query/state libraries (TanStack Query/Redux Toolkit) where useful."
+    ),
+    "next": (
+        "Next.js context: choose App Router conventions, Server Components by default, route handlers for APIs, and server actions where appropriate. "
+        "Respect data-fetch caching/revalidation and environment separation for server/client code."
+    ),
+    "vue": (
+        "Vue context: use Composition API with script setup, Pinia for state when shared state is needed, and computed/watch idioms over ad-hoc mutation."
+    ),
+    "nuxt": (
+        "Nuxt context: follow pages/layouts auto-routing, composables, Nitro server routes, and runtime config patterns. "
+        "Prefer framework primitives over custom boilerplate."
+    ),
+    "angular": (
+        "Angular context: preserve module/standalone component structure, dependency injection patterns, RxJS best practices, and strict typing."
+    ),
+    "svelte": (
+        "Svelte/SvelteKit context: leverage reactive declarations, stores, load functions, and file-based routing conventions."
+    ),
+    "spring": (
+        "Spring Boot context: generate complete Maven/Gradle project structure, controller-service-repository layering, DTO/entity boundaries, "
+        "validation, and application properties with clear profiles."
+    ),
+    "java": (
+        "Java context: strong typing, package organization, interfaces where useful, tested exception handling, and buildable project files."
+    ),
+    "python": (
+        "Python context: idiomatic packaging, type hints, virtual-env friendly dependencies, and clear module boundaries."
+    ),
+    "django": (
+        "Django context: project/app split, settings module hygiene, models-views-templates separation, migrations, and URLConf organization."
+    ),
+    "flask": (
+        "Flask context: app factory pattern, blueprints for modularity, configuration classes, and extension initialization patterns."
+    ),
+    "fastapi": (
+        "FastAPI context: pydantic models for IO contracts, dependency injection, async endpoints where needed, and clear router separation."
+    ),
+    "node": (
+        "Node.js context: choose ESM/CJS consistently, package scripts, dotenv/config handling, and robust lint/test setup."
+    ),
+    "express": (
+        "Express context: middleware layering, centralized error handlers, route modules, and validation/auth concerns separated cleanly."
+    ),
+    "nestjs": (
+        "NestJS context: module/controller/service patterns, DTO validation via class-validator, and provider-driven architecture."
+    ),
+    "dotnet": (
+        ".NET context: solution/project organization, dependency injection, configuration providers, and clean API/service boundaries."
+    ),
+    "rails": (
+        "Ruby on Rails context: MVC conventions, migrations, strong params, and idiomatic ActiveRecord/service object usage."
+    ),
+    "laravel": (
+        "Laravel context: artisan-friendly structure, controllers/services, request validation, Eloquent relationships, and config/.env conventions."
+    ),
+    "go": (
+        "Go context: package-by-feature where practical, explicit errors, interfaces at boundaries, and go.mod-aware project layout."
+    ),
+    "rust": (
+        "Rust context: ownership-safe patterns, crate/module organization, trait-based abstractions, and Cargo project completeness."
+    ),
+    "kubernetes": (
+        "Kubernetes/DevOps context: provide deployment/service/ingress manifests, env/config secrets strategy, and health/readiness checks."
+    ),
+}
+
+
+def build_stack_context(user_instructions: str) -> str:
+    instruction_text = (user_instructions or "").lower()
+    selected_contexts = [
+        f"- {context}"
+        for key, context in STACK_CONTEXTS.items()
+        if key in instruction_text
+    ]
+    if not selected_contexts:
+        return ""
+
+    return "TECH STACK CONVERSION GUIDANCE:\n" + "\n".join(selected_contexts)
 
 
 def _flatten_related_topics(items: List[Dict[str, Any]]) -> List[Dict[str, str]]:
@@ -248,6 +338,7 @@ async def process_file(
     user_prompt = (
         f"CURRENT FILE: {filename}\n"
         f"INSTRUCTION: {user_instructions}\n"
+        f"{build_stack_context(user_instructions)}\n"
         f"{(web_context or '').strip()}\n\n"
         f"CONTENT:\n{content}"
     )
@@ -309,18 +400,30 @@ async def refactor_endpoint(
     web_search_results: int = Form(5),
 ):
     work_dir = tempfile.mkdtemp()
-    upload_zip = os.path.join(work_dir, "input.zip")
+    uploaded_path = os.path.join(work_dir, file.filename or "uploaded_input")
     extract_dir = os.path.join(work_dir, "source")
     output_zip = os.path.join(work_dir, "refactored.zip")
 
     os.makedirs(extract_dir, exist_ok=True)
 
     try:
-        with open(upload_zip, "wb") as f:
+        with open(uploaded_path, "wb") as f:
             shutil.copyfileobj(file.file, f)
 
-        with zipfile.ZipFile(upload_zip, 'r') as z:
-            z.extractall(extract_dir)
+        uploaded_ext = os.path.splitext(file.filename or "")[1].lower()
+        if uploaded_ext == ".zip":
+            with zipfile.ZipFile(uploaded_path, 'r') as z:
+                z.extractall(extract_dir)
+        else:
+            if uploaded_ext not in ALLOWED_EXTENSIONS:
+                return {
+                    "error": (
+                        f"Unsupported file type: {uploaded_ext or 'unknown'}. "
+                        "Upload a .zip or a supported source file extension."
+                    )
+                }
+            safe_name = os.path.basename(file.filename or f"uploaded{uploaded_ext}")
+            shutil.copy2(uploaded_path, os.path.join(extract_dir, safe_name))
 
         files_to_process = []
         for root, _, files in os.walk(extract_dir):
