@@ -11,13 +11,15 @@
         h1 { margin-top: 0; color: #1e293b; font-size: 1.5rem; }
         .form-group { margin-bottom: 1.5rem; }
         label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; }
-        input[type="file"] { border: 1px solid #cbd5e1; padding: 0.5rem; width: 100%; border-radius: 6px; box-sizing: border-box; }
+        input[type="file"], input[type="text"], input[type="number"] { border: 1px solid #cbd5e1; padding: 0.5rem; width: 100%; border-radius: 6px; box-sizing: border-box; }
         textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; resize: vertical; min-height: 100px; font-family: monospace; }
         button { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; transition: background 0.2s; }
         button:hover { background: #1d4ed8; }
         button:disabled { background: #94a3b8; cursor: not-allowed; }
         .status { margin-top: 1rem; text-align: center; color: #64748b; font-size: 0.9rem; }
         .download-btn { display: block; text-align: center; margin-top: 1rem; color: var(--primary); text-decoration: none; font-weight: bold; }
+        .inline-check { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; color: #334155; }
+        .hint { margin-top: 0.4rem; color: #64748b; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -31,6 +33,18 @@
             <div class="form-group">
                 <label>2. Instructions</label>
                 <textarea id="instructions" placeholder="e.g. Add TypeScript types to all variables..." required></textarea>
+            </div>
+            <div class="form-group">
+                <label class="inline-check">
+                    <input type="checkbox" id="webSearchEnabled">
+                    3. Add web research to prompt context
+                </label>
+                <input type="text" id="webSearchQuery" placeholder="Optional custom search query (defaults to your instructions)">
+                <div class="hint">When enabled, local-chat will query public web search endpoints and include concise snippets in prompt context.</div>
+            </div>
+            <div class="form-group">
+                <label>4. Web snippet count (1-10)</label>
+                <input type="number" id="webSearchResults" min="1" max="10" value="5">
             </div>
             <button type="submit" id="submitBtn">Start Refactoring</button>
         </form>
@@ -53,14 +67,17 @@
             const formData = new FormData();
             formData.append('file', document.getElementById('fileInput').files[0]);
             formData.append('instructions', document.getElementById('instructions').value);
+            formData.append('web_search_enabled', document.getElementById('webSearchEnabled').checked);
+            formData.append('web_search_query', document.getElementById('webSearchQuery').value);
+            formData.append('web_search_results', document.getElementById('webSearchResults').value);
 
             try {
                 const res = await fetch('/refactor', { method: 'POST', body: formData });
                 if (!res.ok) throw new Error("Server Error");
-                
+
                 const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
-                
+
                 downloadLink.href = url;
                 downloadLink.download = "refactored_project.zip";
                 downloadLink.textContent = "Download Complete! Click here.";
