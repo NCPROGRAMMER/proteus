@@ -90,6 +90,7 @@ export MAX_FILE_CHARS=20000
 - `Auto` mode selects `Speed` for smaller inputs and `Balanced` for larger ones.
 - `MAX_FILE_CHARS` limits huge source files from overloading prompt size (improves local responsiveness).
 - If `Balanced`/`Quality` uses a model that is not pulled locally, Proteus now auto-falls back to an available model (usually `Speed`) and reports a warning instead of silently producing zero output.
+- If a model returns non-code guidance text instead of converted files, Proteus now stops with an explicit error instead of silently reporting success with zero saved files.
 
 For Python-to-Java conversion of a simple script, Speed/Auto mode on GPU hardware should substantially reduce total runtime versus the default high-context profile.
 

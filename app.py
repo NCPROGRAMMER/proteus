@@ -359,6 +359,23 @@ def _build_generation_config(mode: str) -> Dict[str, Any]:
     return profiles.get(mode, profiles["balanced"])
 
 
+def _is_conversion_request(instructions: str) -> bool:
+    lowered = (instructions or "").lower()
+    keywords = ["convert", "port", "rewrite", "migrate", "translate", "to java", "to spring"]
+    return any(k in lowered for k in keywords)
+
+
+def _looks_like_non_code_text(text: str) -> bool:
+    lowered = (text or "").lower()
+    phrases = [
+        "potential improvements",
+        "example usage",
+        "this script can be extended",
+        "to run this application",
+    ]
+    return any(p in lowered for p in phrases)
+
+
 def _safe_relpath(path: str, base_dir: str) -> str:
     return os.path.relpath(path, base_dir).replace(os.sep, "/")
 
@@ -464,6 +481,7 @@ async def process_file(
         content = content[:MAX_FILE_CHARS]
 
     generation = _build_generation_config(mode)
+    conversion_request = _is_conversion_request(user_instructions)
 
     system_prompt = (
         "You are an expert software architect. "
@@ -478,7 +496,7 @@ async def process_file(
         "### FILE: src/main/java/com/example/App.java\n"
         "package com.example;\n"
         "...\n\n"
-        "Do not output conversational text. Just the file markers and code."
+        "Do not output conversational text. Do not output summaries. Just file markers and code."
     )
 
     user_prompt = (
@@ -489,12 +507,12 @@ async def process_file(
         f"CONTENT:\n{content}"
     )
 
-    try:
+    async def _generate(prompt_text: str) -> str:
         response = await client.post(
             OLLAMA_URL,
             json={
                 "model": generation["model"],
-                "prompt": user_prompt,
+                "prompt": prompt_text,
                 "system": system_prompt,
                 "stream": False,
                 "keep_alive": OLLAMA_KEEP_ALIVE,
@@ -503,10 +521,19 @@ async def process_file(
             timeout=None,
         )
         response.raise_for_status()
-        result = response.json()
-        raw_output = result.get("response", "")
+        return response.json().get("response", "")
 
+    try:
+        raw_output = await _generate(user_prompt)
         new_files = parse_and_save_files(raw_output, extract_root)
+
+        if conversion_request and not new_files and "### FILE:" not in raw_output:
+            retry_prompt = user_prompt + (
+                "\n\nIMPORTANT: You must return ONLY code files using '### FILE:' markers. "
+                "No explanations, no markdown prose."
+            )
+            raw_output = await _generate(retry_prompt)
+            new_files = parse_and_save_files(raw_output, extract_root)
 
         if new_files:
             print(f"✅ Converted {filename} into {len(new_files)} new files:")
@@ -517,6 +544,10 @@ async def process_file(
         cleaned_code = raw_output.strip()
         if cleaned_code.startswith("```"):
             cleaned_code = cleaned_code.split("\n", 1)[1].rsplit("\n", 1)[0]
+
+        if conversion_request and _looks_like_non_code_text(cleaned_code):
+            print(f"⚠️ Skipping non-code model output for {filename}")
+            return []
 
         if len(cleaned_code) > 0 and "I cannot assist" not in cleaned_code:
             with open(file_path, "w", encoding="utf-8") as f:
@@ -678,10 +709,18 @@ async def refactor_endpoint(
 
             async def worker(fp, instr, web_ctx, async_client):
                 async with sem:
-                    await process_file(fp, instr, web_ctx, async_client, extract_dir, mode)
+                    return await process_file(fp, instr, web_ctx, async_client, extract_dir, mode)
 
             tasks = [worker(fp, instructions, web_context, client) for fp in files_to_process]
-            await asyncio.gather(*tasks)
+            results = await asyncio.gather(*tasks)
+            total_changed = sum(len(item or []) for item in results)
+            if total_changed == 0:
+                return {
+                    "error": (
+                        "No converted files were produced. The model may have returned non-code guidance text. "
+                        "Try Speed mode or refine instructions (e.g., 'Output only code files with ### FILE markers')."
+                    )
+                }
 
         with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as z:
             for root, _, files in os.walk(extract_dir):
@@ -756,6 +795,7 @@ async def refactor_stream_endpoint(
                         max_results=bounded_results,
                     )
 
+                total_saved = 0
                 for idx, fp in enumerate(files_to_process, start=1):
                     changed_files = await process_file(fp, instructions, web_context, client, extract_dir, mode)
                     for rel_path in changed_files:
@@ -766,6 +806,7 @@ async def refactor_stream_endpoint(
                             content = _read_text_file(abs_path)
                         except Exception:
                             continue
+                        total_saved += 1
                         yield json.dumps({
                             "type": "file",
                             "path": rel_path,
@@ -775,6 +816,13 @@ async def refactor_stream_endpoint(
                         }) + "\n"
 
                     yield json.dumps({"type": "progress", "processed": idx, "total": len(files_to_process)}) + "\n"
+
+            if total_saved == 0:
+                yield json.dumps({
+                    "type": "error",
+                    "message": "No converted files were produced. The model likely returned non-code guidance text. Try Speed mode or stricter conversion instructions."
+                }) + "\n"
+                return
 
             yield json.dumps({"type": "done", "message": "Conversion complete"}) + "\n"
         except Exception as e:
