@@ -103,8 +103,27 @@
             }
         };
 
+        function sanitizeSegment(segment, fallbackName) {
+            let cleaned = (segment || '').trim();
+            cleaned = cleaned.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
+            cleaned = cleaned.replace(/[. ]+$/g, '');
+            if (!cleaned || cleaned === '.' || cleaned === '..') {
+                return fallbackName;
+            }
+            return cleaned;
+        }
+
+        function normalizeRelativePath(relativePath) {
+            const normalized = (relativePath || '').replace(/\\/g, '/');
+            const rawSegments = normalized.split('/').filter(Boolean);
+            return rawSegments.map((seg, idx) => {
+                const isFile = idx === rawSegments.length - 1;
+                return sanitizeSegment(seg, isFile ? 'converted_file.txt' : 'folder');
+            });
+        }
+
         async function writeFileToSelectedDirectory(relativePath, content) {
-            const segments = relativePath.split('/').filter(Boolean);
+            const segments = normalizeRelativePath(relativePath);
             if (!segments.length) return;
 
             let dirHandle = outputDirHandle;
