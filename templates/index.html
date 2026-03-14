@@ -340,6 +340,10 @@
                         throw new Error(msg.message || 'Unknown stream error');
                     }
 
+                    if (msg.type === 'warning') {
+                        status.textContent = `Warning: ${msg.message}`;
+                    }
+
                     if (msg.type === 'start') {
                         status.textContent = `Started conversion in ${msg.mode} mode (${msg.total_files} source files)`;
                     }

@@ -368,22 +368,28 @@ def _read_text_file(path: str) -> str:
         return f.read()
 
 
-async def _validate_ollama_setup(client: httpx.AsyncClient) -> Optional[str]:
-    """Return an error string when Ollama/model is unavailable, otherwise None."""
+async def _validate_ollama_setup(client: httpx.AsyncClient) -> Dict[str, Any]:
+    """Return {'error': str|None, 'models': set[str]} for Ollama availability/model checks."""
     try:
         tags_resp = await client.get(OLLAMA_TAGS_URL, timeout=20)
     except Exception as e:
-        return (
-            "Unable to reach Ollama at "
-            f"{OLLAMA_BASE_URL}. Check docker networking and that the ollama container is running. "
-            f"({type(e).__name__}: {e})"
-        )
+        return {
+            "error": (
+                "Unable to reach Ollama at "
+                f"{OLLAMA_BASE_URL}. Check docker networking and that the ollama container is running. "
+                f"({type(e).__name__}: {e})"
+            ),
+            "models": set(),
+        }
 
     if tags_resp.status_code >= 400:
-        return (
-            f"Ollama is reachable but returned HTTP {tags_resp.status_code} from /api/tags. "
-            "Check your OLLAMA_BASE_URL/OLLAMA_HOST configuration."
-        )
+        return {
+            "error": (
+                f"Ollama is reachable but returned HTTP {tags_resp.status_code} from /api/tags. "
+                "Check your OLLAMA_BASE_URL/OLLAMA_HOST configuration."
+            ),
+            "models": set(),
+        }
 
     try:
         payload = tags_resp.json()
@@ -392,15 +398,46 @@ async def _validate_ollama_setup(client: httpx.AsyncClient) -> Optional[str]:
 
     models = payload.get("models", []) if isinstance(payload, dict) else []
     model_names = {m.get("name", "") for m in models if isinstance(m, dict)}
-    if MODEL_NAME not in model_names and FAST_MODEL_NAME not in model_names:
-        return (
-            "No configured model is available in Ollama. "
-            f"Expected at least one of: {MODEL_NAME}, {FAST_MODEL_NAME}. "
-            "Pull a model first, for example: "
-            f"docker exec -it ollama_backend ollama pull {MODEL_NAME}"
-        )
 
-    return None
+    if MODEL_NAME not in model_names and FAST_MODEL_NAME not in model_names:
+        return {
+            "error": (
+                "No configured model is available in Ollama. "
+                f"Expected at least one of: {MODEL_NAME}, {FAST_MODEL_NAME}. "
+                "Pull a model first, for example: "
+                f"docker exec -it ollama_backend ollama pull {MODEL_NAME}"
+            ),
+            "models": model_names,
+        }
+
+    return {"error": None, "models": model_names}
+
+
+def _resolve_mode_for_available_models(mode: str, available_models: set) -> Dict[str, Optional[str]]:
+    desired = _build_generation_config(mode).get("model")
+    if desired in available_models:
+        return {"mode": mode, "warning": None}
+
+    if FAST_MODEL_NAME in available_models:
+        return {
+            "mode": "speed",
+            "warning": (
+                f"Requested mode '{mode}' uses unavailable model '{desired}'. "
+                f"Falling back to speed mode with '{FAST_MODEL_NAME}'."
+            ),
+        }
+
+    if MODEL_NAME in available_models:
+        fallback_mode = "balanced" if mode != "quality" else "quality"
+        return {
+            "mode": fallback_mode,
+            "warning": (
+                f"Requested mode '{mode}' uses unavailable model '{desired}'. "
+                f"Falling back to '{fallback_mode}' with '{MODEL_NAME}'."
+            ),
+        }
+
+    return {"mode": mode, "warning": None}
 
 
 async def process_file(
@@ -616,9 +653,14 @@ async def refactor_endpoint(
                 "User-Agent": "local-chat/1.0 (+https://localhost)",
             }
         ) as client:
-            ollama_error = await _validate_ollama_setup(client)
-            if ollama_error:
-                return {"error": ollama_error}
+            setup = await _validate_ollama_setup(client)
+            if setup.get("error"):
+                return {"error": setup["error"]}
+
+            resolved = _resolve_mode_for_available_models(mode, setup.get("models", set()))
+            mode = resolved.get("mode") or mode
+            if resolved.get("warning"):
+                print(f"⚠️ {resolved['warning']}")
 
             search_query = (web_search_query or "").strip() or instructions
             web_context = ""
@@ -686,17 +728,23 @@ async def refactor_stream_endpoint(
                 return
             total_chars = _estimate_total_chars(files_to_process)
             mode = _resolve_profile(performance_mode, total_chars)
-            yield json.dumps({"type": "start", "total_files": len(files_to_process), "mode": mode}) + "\n"
 
             async with httpx.AsyncClient(
                 headers={
                     "User-Agent": "local-chat/1.0 (+https://localhost)",
                 }
             ) as client:
-                ollama_error = await _validate_ollama_setup(client)
-                if ollama_error:
-                    yield json.dumps({"type": "error", "message": ollama_error}) + "\n"
+                setup = await _validate_ollama_setup(client)
+                if setup.get("error"):
+                    yield json.dumps({"type": "error", "message": setup["error"]}) + "\n"
                     return
+
+                resolved = _resolve_mode_for_available_models(mode, setup.get("models", set()))
+                mode = resolved.get("mode") or mode
+                if resolved.get("warning"):
+                    yield json.dumps({"type": "warning", "message": resolved["warning"]}) + "\n"
+
+                yield json.dumps({"type": "start", "total_files": len(files_to_process), "mode": mode}) + "\n"
 
                 search_query = (web_search_query or "").strip() or instructions
                 web_context = ""
