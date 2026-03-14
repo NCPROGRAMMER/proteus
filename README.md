@@ -123,3 +123,4 @@ You can now skip the final download step in supported browsers:
 -   **Logs:** Run `docker compose logs -f app` to see what the AI is writing in real-time.
 -   **Timeout:** The application is configured to wait indefinitely for the LLM. If you experience network timeouts (e.g. Nginx 504 Gateway Time-out), check your reverse proxy settings.
 -   **Memory:** If the container crashes on large files, try a smaller model like `qwen2.5-coder:7b`.
+-   **404 from Ollama `/api/generate`:** This usually means the model is not pulled yet. Run `docker exec -it ollama_backend ollama pull qwen2.5-coder:14b` (or your configured `MODEL_NAME`).

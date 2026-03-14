@@ -18,7 +18,13 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 # Configuration
-OLLAMA_URL = "http://ollama:11434/api/generate"
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "ollama")
+OLLAMA_PORT = os.getenv("OLLAMA_PORT", "11434")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", f"http://{OLLAMA_HOST}:{OLLAMA_PORT}")
+OLLAMA_GENERATE_PATH = os.getenv("OLLAMA_GENERATE_PATH", "/api/generate")
+OLLAMA_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/{OLLAMA_GENERATE_PATH.lstrip('/')}"
+OLLAMA_TAGS_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/api/tags"
+
 # Default quality model for larger, multi-file conversions.
 MODEL_NAME = os.getenv("MODEL_NAME", "qwen2.5-coder:14b")
 # Faster model profile for local workstation throughput.
@@ -362,6 +368,41 @@ def _read_text_file(path: str) -> str:
         return f.read()
 
 
+async def _validate_ollama_setup(client: httpx.AsyncClient) -> Optional[str]:
+    """Return an error string when Ollama/model is unavailable, otherwise None."""
+    try:
+        tags_resp = await client.get(OLLAMA_TAGS_URL, timeout=20)
+    except Exception as e:
+        return (
+            "Unable to reach Ollama at "
+            f"{OLLAMA_BASE_URL}. Check docker networking and that the ollama container is running. "
+            f"({type(e).__name__}: {e})"
+        )
+
+    if tags_resp.status_code >= 400:
+        return (
+            f"Ollama is reachable but returned HTTP {tags_resp.status_code} from /api/tags. "
+            "Check your OLLAMA_BASE_URL/OLLAMA_HOST configuration."
+        )
+
+    try:
+        payload = tags_resp.json()
+    except Exception:
+        payload = {}
+
+    models = payload.get("models", []) if isinstance(payload, dict) else []
+    model_names = {m.get("name", "") for m in models if isinstance(m, dict)}
+    if MODEL_NAME not in model_names and FAST_MODEL_NAME not in model_names:
+        return (
+            "No configured model is available in Ollama. "
+            f"Expected at least one of: {MODEL_NAME}, {FAST_MODEL_NAME}. "
+            "Pull a model first, for example: "
+            f"docker exec -it ollama_backend ollama pull {MODEL_NAME}"
+        )
+
+    return None
+
+
 async def process_file(
     file_path: str,
     user_instructions: str,
@@ -446,6 +487,23 @@ async def process_file(
             rel = _safe_relpath(file_path, extract_root)
             print(f"✅ Refactored {filename} (Single file update)")
             return [rel]
+
+    except httpx.HTTPStatusError as e:
+        status = e.response.status_code if e.response is not None else "unknown"
+        body = ""
+        try:
+            body = e.response.text if e.response is not None else ""
+        except Exception:
+            body = ""
+
+        if status == 404 and "not found" in body.lower() and "model" in body.lower():
+            print(
+                "❌ Ollama model not found. "
+                f"Tried model='{generation['model']}'. "
+                f"Run: docker exec -it ollama_backend ollama pull {generation['model']}"
+            )
+        else:
+            print(f"❌ Error processing {filename}: HTTP {status} from Ollama - {body[:300]}")
 
     except Exception as e:
         import traceback
@@ -536,6 +594,10 @@ async def refactor_endpoint(
                 "User-Agent": "local-chat/1.0 (+https://localhost)",
             }
         ) as client:
+            ollama_error = await _validate_ollama_setup(client)
+            if ollama_error:
+                return {"error": ollama_error}
+
             search_query = (web_search_query or "").strip() or instructions
             web_context = ""
             if web_search_enabled:
@@ -608,6 +670,11 @@ async def refactor_stream_endpoint(
                     "User-Agent": "local-chat/1.0 (+https://localhost)",
                 }
             ) as client:
+                ollama_error = await _validate_ollama_setup(client)
+                if ollama_error:
+                    yield json.dumps({"type": "error", "message": ollama_error}) + "\n"
+                    return
+
                 search_query = (web_search_query or "").strip() or instructions
                 web_context = ""
                 if web_search_enabled:
