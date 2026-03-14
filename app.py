@@ -278,6 +278,27 @@ async def fetch_web_context(
     return "\n".join(lines)
 
 
+def _is_safe_output_filename(fname: str) -> bool:
+    candidate = (fname or "").strip()
+    if not candidate:
+        return False
+    if "\x00" in candidate or ".." in candidate:
+        return False
+    if candidate.startswith(("/", "\\")):
+        return False
+    if "\n" in candidate or "\r" in candidate or len(candidate) > 240:
+        return False
+    parts = [p for p in candidate.replace("\\", "/").split("/") if p]
+    if not parts:
+        return False
+    leaf = parts[-1]
+    if leaf.lower() in {"file", "path", "filename", "name"}:
+        return False
+    if " " in leaf and "." not in leaf:
+        return False
+    return True
+
+
 def parse_and_save_files(raw_text: str, base_dir: str):
     """
     Scans for '### FILE: <name>' markers.
@@ -301,8 +322,7 @@ def parse_and_save_files(raw_text: str, base_dir: str):
             if lines and lines[-1].startswith("```"):
                 lines = lines[:-1]
             content = "\n".join(lines)
-
-        if ".." in fname or fname.startswith("/") or fname.startswith("\\"):
+        if not _is_safe_output_filename(fname):
             print(f"⚠️ Skipping unsafe filename: {fname}")
             continue
 
@@ -433,28 +453,36 @@ async def _validate_ollama_setup(client: httpx.AsyncClient) -> Dict[str, Any]:
 def _resolve_mode_for_available_models(mode: str, available_models: set) -> Dict[str, Optional[str]]:
     desired = _build_generation_config(mode).get("model")
     if desired in available_models:
-        return {"mode": mode, "warning": None}
+        return {"mode": mode, "warning": None, "error": None}
 
-    if FAST_MODEL_NAME in available_models:
-        return {
-            "mode": "speed",
-            "warning": (
-                f"Requested mode '{mode}' uses unavailable model '{desired}'. "
-                f"Falling back to speed mode with '{FAST_MODEL_NAME}'."
-            ),
-        }
+    if mode == "auto":
+        if FAST_MODEL_NAME in available_models:
+            return {
+                "mode": "speed",
+                "warning": (
+                    f"Auto mode selected unavailable model '{desired}'. "
+                    f"Using speed mode with '{FAST_MODEL_NAME}'."
+                ),
+                "error": None,
+            }
+        if MODEL_NAME in available_models:
+            return {
+                "mode": "balanced",
+                "warning": (
+                    f"Auto mode selected unavailable model '{desired}'. "
+                    f"Using balanced mode with '{MODEL_NAME}'."
+                ),
+                "error": None,
+            }
 
-    if MODEL_NAME in available_models:
-        fallback_mode = "balanced" if mode != "quality" else "quality"
-        return {
-            "mode": fallback_mode,
-            "warning": (
-                f"Requested mode '{mode}' uses unavailable model '{desired}'. "
-                f"Falling back to '{fallback_mode}' with '{MODEL_NAME}'."
-            ),
-        }
-
-    return {"mode": mode, "warning": None}
+    return {
+        "mode": mode,
+        "warning": None,
+        "error": (
+            f"Selected mode '{mode}' requires model '{desired}', which is not available locally. "
+            f"Pull it with: docker exec -it ollama_backend ollama pull {desired}"
+        ),
+    }
 
 
 async def process_file(
@@ -525,9 +553,11 @@ async def process_file(
 
     try:
         raw_output = await _generate(user_prompt)
-        new_files = parse_and_save_files(raw_output, extract_root)
+        new_files = None
+        if raw_output.lstrip().startswith("### FILE:"):
+            new_files = parse_and_save_files(raw_output, extract_root)
 
-        if conversion_request and not new_files and "### FILE:" not in raw_output:
+        if conversion_request and not new_files:
             retry_prompt = user_prompt + (
                 "\n\nIMPORTANT: You must return ONLY code files using '### FILE:' markers. "
                 "No explanations, no markdown prose."
@@ -689,6 +719,8 @@ async def refactor_endpoint(
                 return {"error": setup["error"]}
 
             resolved = _resolve_mode_for_available_models(mode, setup.get("models", set()))
+            if resolved.get("error"):
+                return {"error": resolved["error"]}
             mode = resolved.get("mode") or mode
             if resolved.get("warning"):
                 print(f"⚠️ {resolved['warning']}")
