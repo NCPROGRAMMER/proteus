@@ -56,6 +56,40 @@ winpty docker exec -it ollama_backend ollama pull qwen2.5-coder:14b
 6.  Click **Process**.
 7.  Wait for processing to finish (logs are available via `docker compose logs -f app`) and download the result.
 
+
+## Performance Tuning (for 16GB RAM + decent GPU)
+
+If your conversions are taking 10-15 minutes, switch to a faster profile and model:
+
+1. Use the GPU compose profile:
+```bash
+docker compose -f docker-compose.gpu.yml up --build -d
+```
+
+2. Pull a faster model for day-to-day conversions:
+```bash
+docker exec -it ollama_backend ollama pull qwen2.5-coder:7b
+```
+
+3. Set runtime env vars for speed-focused runs (example):
+```bash
+export PROTEUS_PROFILE=auto
+export FAST_MODEL_NAME=qwen2.5-coder:7b
+export MODEL_NAME=qwen2.5-coder:14b
+export OLLAMA_CONCURRENCY=1
+export OLLAMA_KEEP_ALIVE=30m
+export MAX_FILE_CHARS=20000
+```
+
+4. In the UI, choose **Performance mode = Speed** (or Auto).
+
+### What these settings do
+- `Speed` mode uses a smaller context window and lower output token cap to reduce generation latency.
+- `Auto` mode selects `Speed` for smaller inputs and `Balanced` for larger ones.
+- `MAX_FILE_CHARS` limits huge source files from overloading prompt size (improves local responsiveness).
+
+For Python-to-Java conversion of a simple script, Speed/Auto mode on GPU hardware should substantially reduce total runtime versus the default high-context profile.
+
 ## Project Structure
 
 ```text

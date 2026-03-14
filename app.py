@@ -19,9 +19,14 @@ templates = Jinja2Templates(directory="templates")
 
 # Configuration
 OLLAMA_URL = "http://ollama:11434/api/generate"
-# 14B is crucial here. 3B struggles to generate multi-file projects consistently.
-MODEL_NAME = "qwen2.5-coder:14b"
+# Default quality model for larger, multi-file conversions.
+MODEL_NAME = os.getenv("MODEL_NAME", "qwen2.5-coder:14b")
+# Faster model profile for local workstation throughput.
+FAST_MODEL_NAME = os.getenv("FAST_MODEL_NAME", "qwen2.5-coder:7b")
 MAX_WEB_SNIPPET_CHARS = 320
+PROFILE_NAME = os.getenv("PROTEUS_PROFILE", "balanced").strip().lower()
+OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
+MAX_FILE_CHARS = int(os.getenv("MAX_FILE_CHARS", "20000"))
 
 ALLOWED_EXTENSIONS = {
     '.py', '.pyi', '.ipynb',
@@ -306,12 +311,55 @@ def parse_and_save_files(raw_text: str, base_dir: str):
     return created_files
 
 
+def _resolve_profile(requested_mode: Optional[str], source_char_count: int) -> str:
+    mode = (requested_mode or PROFILE_NAME or "balanced").strip().lower()
+
+    if mode not in {"speed", "balanced", "quality", "auto"}:
+        mode = "balanced"
+
+    if mode == "auto":
+        return "speed" if source_char_count <= 6000 else "balanced"
+
+    return mode
+
+
+def _build_generation_config(mode: str) -> Dict[str, Any]:
+    profiles = {
+        "speed": {
+            "model": FAST_MODEL_NAME,
+            "options": {
+                "temperature": 0.1,
+                "num_ctx": 4096,
+                "num_predict": 2048,
+            },
+        },
+        "balanced": {
+            "model": MODEL_NAME,
+            "options": {
+                "temperature": 0.2,
+                "num_ctx": 8192,
+                "num_predict": 3072,
+            },
+        },
+        "quality": {
+            "model": MODEL_NAME,
+            "options": {
+                "temperature": 0.2,
+                "num_ctx": 16384,
+                "num_predict": 4096,
+            },
+        },
+    }
+    return profiles.get(mode, profiles["balanced"])
+
+
 async def process_file(
     file_path: str,
     user_instructions: str,
     web_context: Optional[str],
     client: httpx.AsyncClient,
     extract_root: str,
+    mode: str,
 ):
     filename = os.path.basename(file_path)
     if os.path.splitext(filename)[1].lower() not in ALLOWED_EXTENSIONS:
@@ -322,6 +370,14 @@ async def process_file(
             content = f.read()
     except Exception:
         return
+
+    if len(content) > MAX_FILE_CHARS:
+        print(
+            f"⚠️ Input {filename} is {len(content)} chars. Truncating to first {MAX_FILE_CHARS} chars for faster processing."
+        )
+        content = content[:MAX_FILE_CHARS]
+
+    generation = _build_generation_config(mode)
 
     system_prompt = (
         "You are an expert software architect. "
@@ -351,14 +407,12 @@ async def process_file(
         response = await client.post(
             OLLAMA_URL,
             json={
-                "model": MODEL_NAME,
+                "model": generation["model"],
                 "prompt": user_prompt,
                 "system": system_prompt,
                 "stream": False,
-                "options": {
-                    "temperature": 0.2,
-                    "num_ctx": 16384,
-                },
+                "keep_alive": OLLAMA_KEEP_ALIVE,
+                "options": generation["options"],
             },
             timeout=None,
         )
@@ -402,6 +456,7 @@ async def refactor_endpoint(
     web_search_enabled: bool = Form(False),
     web_search_query: str = Form(""),
     web_search_results: int = Form(5),
+    performance_mode: str = Form("auto"),
 ):
     work_dir = tempfile.mkdtemp()
     uploaded_path = os.path.join(work_dir, file.filename or "uploaded_input")
@@ -434,7 +489,17 @@ async def refactor_endpoint(
             for filename in files:
                 files_to_process.append(os.path.join(root, filename))
 
-        sem = asyncio.Semaphore(1)
+        sem = asyncio.Semaphore(max(1, int(os.getenv("OLLAMA_CONCURRENCY", "1"))))
+
+        total_chars = 0
+        for fp in files_to_process:
+            try:
+                with open(fp, "r", encoding="utf-8") as src:
+                    total_chars += len(src.read())
+            except Exception:
+                continue
+        mode = _resolve_profile(performance_mode, total_chars)
+        print(f"⚙️ Processing mode: {mode} (total source chars: {total_chars})")
 
         async with httpx.AsyncClient(
             headers={
@@ -457,7 +522,7 @@ async def refactor_endpoint(
 
             async def worker(fp, instr, web_ctx, async_client):
                 async with sem:
-                    await process_file(fp, instr, web_ctx, async_client, extract_dir)
+                    await process_file(fp, instr, web_ctx, async_client, extract_dir, mode)
 
             tasks = [worker(fp, instructions, web_context, client) for fp in files_to_process]
             await asyncio.gather(*tasks)
