@@ -24,6 +24,8 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", f"http://{OLLAMA_HOST}:{OLLAMA_PO
 OLLAMA_GENERATE_PATH = os.getenv("OLLAMA_GENERATE_PATH", "/api/generate")
 OLLAMA_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/{OLLAMA_GENERATE_PATH.lstrip('/')}"
 OLLAMA_TAGS_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/api/tags"
+OLLAMA_PULL_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/api/pull"
+AUTO_PULL_MODELS = os.getenv("AUTO_PULL_MODELS", "true").strip().lower() in {"1", "true", "yes", "on"}
 
 # Default quality model for larger, multi-file conversions.
 MODEL_NAME = os.getenv("MODEL_NAME", "qwen2.5-coder:14b")
@@ -405,8 +407,7 @@ def _read_text_file(path: str) -> str:
         return f.read()
 
 
-async def _validate_ollama_setup(client: httpx.AsyncClient) -> Dict[str, Any]:
-    """Return {'error': str|None, 'models': set[str]} for Ollama availability/model checks."""
+async def _fetch_available_model_names(client: httpx.AsyncClient) -> Dict[str, Any]:
     try:
         tags_resp = await client.get(OLLAMA_TAGS_URL, timeout=20)
     except Exception as e:
@@ -435,6 +436,59 @@ async def _validate_ollama_setup(client: httpx.AsyncClient) -> Dict[str, Any]:
 
     models = payload.get("models", []) if isinstance(payload, dict) else []
     model_names = {m.get("name", "") for m in models if isinstance(m, dict)}
+    return {"error": None, "models": model_names}
+
+
+async def _pull_model_if_missing(client: httpx.AsyncClient, model_name: str) -> Optional[str]:
+    try:
+        print(f"⬇️ Pulling missing Ollama model: {model_name}")
+        resp = await client.post(
+            OLLAMA_PULL_URL,
+            json={"model": model_name, "stream": False},
+            timeout=None,
+        )
+    except Exception as e:
+        return f"Failed pulling model '{model_name}' from Ollama: {type(e).__name__} - {e}"
+
+    if resp.status_code >= 400:
+        body = resp.text[:300] if resp.text else ""
+        return f"Failed pulling model '{model_name}' (HTTP {resp.status_code}): {body}"
+
+    return None
+
+
+async def _ensure_required_models(client: httpx.AsyncClient, available_models: set) -> Dict[str, Any]:
+    required = {MODEL_NAME, FAST_MODEL_NAME}
+    missing = sorted(m for m in required if m and m not in available_models)
+
+    if not AUTO_PULL_MODELS or not missing:
+        return {"error": None, "models": available_models, "pulled": []}
+
+    pulled = []
+    for model_name in missing:
+        err = await _pull_model_if_missing(client, model_name)
+        if err:
+            return {"error": err, "models": available_models, "pulled": pulled}
+        pulled.append(model_name)
+
+    refreshed = await _fetch_available_model_names(client)
+    if refreshed.get("error"):
+        return {"error": refreshed["error"], "models": available_models, "pulled": pulled}
+
+    return {"error": None, "models": refreshed.get("models", set()), "pulled": pulled}
+
+
+async def _validate_ollama_setup(client: httpx.AsyncClient) -> Dict[str, Any]:
+    """Return {'error': str|None, 'models': set[str]} for Ollama availability/model checks."""
+    initial = await _fetch_available_model_names(client)
+    if initial.get("error"):
+        return {"error": initial["error"], "models": set()}
+
+    ensured = await _ensure_required_models(client, initial.get("models", set()))
+    if ensured.get("error"):
+        return {"error": ensured["error"], "models": ensured.get("models", set())}
+
+    model_names = ensured.get("models", set())
 
     if MODEL_NAME not in model_names and FAST_MODEL_NAME not in model_names:
         return {

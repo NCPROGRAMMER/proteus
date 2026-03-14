@@ -81,11 +81,13 @@ export MODEL_NAME=qwen2.5-coder:14b
 export OLLAMA_CONCURRENCY=1
 export OLLAMA_KEEP_ALIVE=30m
 export MAX_FILE_CHARS=20000
+export AUTO_PULL_MODELS=true
 ```
 
 4. In the UI, choose **Performance mode = Speed** (or Auto).
 
 ### What these settings do
+- `AUTO_PULL_MODELS=true` makes Proteus automatically pull missing configured models (`MODEL_NAME`, `FAST_MODEL_NAME`) before conversion starts.
 - `Speed` mode uses a smaller context window and lower output token cap to reduce generation latency.
 - `Auto` mode selects `Speed` for smaller inputs and `Balanced` for larger ones.
 - `MAX_FILE_CHARS` limits huge source files from overloading prompt size (improves local responsiveness).
