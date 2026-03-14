@@ -49,12 +49,14 @@ winpty docker exec -it ollama_backend ollama pull qwen2.5-coder:14b
 ### 3. Usage
 
 1.  Open your browser to `http://localhost:8000`.
-2.  Upload either a `.zip` project archive or one supported source/config file.
+2.  Upload one or more inputs: a `.zip` project archive, individual supported source/config files, or a mix of both.
 3.  Enter instructions (e.g., *"Add Typescript interfaces"* or *"Convert to Java Spring Boot"*).
 4.  (Optional) Enable **Add web research to prompt context**.
 5.  (Optional) Provide a custom query and web snippet count (1-10).
 6.  Click **Process**.
 7.  Wait for processing to finish (logs are available via `docker compose logs -f app`) and download the result.
+
+Multi-file upload is supported. If you choose several files and/or zips in one request, Proteus stages and processes them together in a single run.
 
 
 ## Performance Tuning (for 16GB RAM + decent GPU)

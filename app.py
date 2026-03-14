@@ -514,23 +514,45 @@ async def process_file(
     return []
 
 
-def _prepare_upload_input(uploaded_path: str, extract_dir: str, file_name: str) -> Optional[Dict[str, str]]:
-    uploaded_ext = os.path.splitext(file_name or "")[1].lower()
-    if uploaded_ext == ".zip":
-        with zipfile.ZipFile(uploaded_path, 'r') as z:
-            z.extractall(extract_dir)
-        return None
+def _collect_uploads(file: Optional[UploadFile], files: Optional[List[UploadFile]]) -> List[UploadFile]:
+    uploads: List[UploadFile] = []
+    if file and (file.filename or "").strip():
+        uploads.append(file)
+    if files:
+        for item in files:
+            if item and (item.filename or "").strip():
+                uploads.append(item)
+    return uploads
 
-    if uploaded_ext not in ALLOWED_EXTENSIONS:
-        return {
-            "error": (
-                f"Unsupported file type: {uploaded_ext or 'unknown'}. "
-                "Upload a .zip or a supported source file extension."
-            )
-        }
 
-    safe_name = os.path.basename(file_name or f"uploaded{uploaded_ext}")
-    shutil.copy2(uploaded_path, os.path.join(extract_dir, safe_name))
+def _prepare_upload_inputs(uploads: List[UploadFile], work_dir: str, extract_dir: str) -> Optional[Dict[str, str]]:
+    if not uploads:
+        return {"error": "No files uploaded. Add one or more files, or a zip."}
+
+    for idx, upload in enumerate(uploads):
+        upload_name = upload.filename or f"uploaded_input_{idx}"
+        staged_path = os.path.join(work_dir, f"upload_{idx}_{os.path.basename(upload_name)}")
+
+        with open(staged_path, "wb") as f:
+            shutil.copyfileobj(upload.file, f)
+
+        uploaded_ext = os.path.splitext(upload_name)[1].lower()
+        if uploaded_ext == ".zip":
+            with zipfile.ZipFile(staged_path, 'r') as z:
+                z.extractall(extract_dir)
+            continue
+
+        if uploaded_ext not in ALLOWED_EXTENSIONS:
+            return {
+                "error": (
+                    f"Unsupported file type: {uploaded_ext or 'unknown'}. "
+                    "Upload a .zip or supported source/config file(s)."
+                )
+            }
+
+        safe_name = os.path.basename(upload_name or f"uploaded{uploaded_ext}")
+        shutil.copy2(staged_path, os.path.join(extract_dir, safe_name))
+
     return None
 
 
@@ -560,7 +582,8 @@ async def home(request: Request):
 @app.post("/refactor")
 async def refactor_endpoint(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    files: Optional[List[UploadFile]] = File(None),
     instructions: str = Form(...),
     web_search_enabled: bool = Form(False),
     web_search_query: str = Form(""),
@@ -568,21 +591,20 @@ async def refactor_endpoint(
     performance_mode: str = Form("auto"),
 ):
     work_dir = tempfile.mkdtemp()
-    uploaded_path = os.path.join(work_dir, file.filename or "uploaded_input")
     extract_dir = os.path.join(work_dir, "source")
     output_zip = os.path.join(work_dir, "refactored.zip")
 
     os.makedirs(extract_dir, exist_ok=True)
 
     try:
-        with open(uploaded_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
-
-        input_error = _prepare_upload_input(uploaded_path, extract_dir, file.filename or "")
+        uploads = _collect_uploads(file, files)
+        input_error = _prepare_upload_inputs(uploads, work_dir, extract_dir)
         if input_error:
             return input_error
 
         files_to_process = _discover_files(extract_dir)
+        if not files_to_process:
+            return {"error": "No processable files were found in the upload."}
         total_chars = _estimate_total_chars(files_to_process)
         mode = _resolve_profile(performance_mode, total_chars)
         print(f"⚙️ Processing mode: {mode} (total source chars: {total_chars})")
@@ -637,7 +659,8 @@ async def refactor_endpoint(
 
 @app.post("/refactor-stream")
 async def refactor_stream_endpoint(
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    files: Optional[List[UploadFile]] = File(None),
     instructions: str = Form(...),
     web_search_enabled: bool = Form(False),
     web_search_query: str = Form(""),
@@ -645,14 +668,11 @@ async def refactor_stream_endpoint(
     performance_mode: str = Form("auto"),
 ):
     work_dir = tempfile.mkdtemp()
-    uploaded_path = os.path.join(work_dir, file.filename or "uploaded_input")
     extract_dir = os.path.join(work_dir, "source")
     os.makedirs(extract_dir, exist_ok=True)
 
-    with open(uploaded_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-
-    input_error = _prepare_upload_input(uploaded_path, extract_dir, file.filename or "")
+    uploads = _collect_uploads(file, files)
+    input_error = _prepare_upload_inputs(uploads, work_dir, extract_dir)
 
     async def stream_results():
         try:
@@ -661,6 +681,9 @@ async def refactor_stream_endpoint(
                 return
 
             files_to_process = _discover_files(extract_dir)
+            if not files_to_process:
+                yield json.dumps({"type": "error", "message": "No processable files were found in the upload."}) + "\n"
+                return
             total_chars = _estimate_total_chars(files_to_process)
             mode = _resolve_profile(performance_mode, total_chars)
             yield json.dumps({"type": "start", "total_files": len(files_to_process), "mode": mode}) + "\n"
