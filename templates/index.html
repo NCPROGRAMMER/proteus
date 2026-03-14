@@ -20,6 +20,9 @@
         .download-btn { display: block; text-align: center; margin-top: 1rem; color: var(--primary); text-decoration: none; font-weight: bold; }
         .inline-check { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; color: #334155; }
         .hint { margin-top: 0.4rem; color: #64748b; font-size: 0.8rem; }
+        .row { display: flex; gap: 0.5rem; }
+        .secondary-btn { background: #334155; }
+        .secondary-btn:hover { background: #1e293b; }
     </style>
 </head>
 <body>
@@ -57,6 +60,16 @@
                 <label>5. Web snippet count (1-10)</label>
                 <input type="number" id="webSearchResults" min="1" max="10" value="5">
             </div>
+            <div class="form-group">
+                <label class="inline-check">
+                    <input type="checkbox" id="directSaveEnabled">
+                    6. Save directly to local folder (Chrome/Edge)
+                </label>
+                <div class="row">
+                    <button type="button" id="pickFolderBtn" class="secondary-btn">Choose Output Folder</button>
+                </div>
+                <div class="hint" id="selectedFolder">No folder selected.</div>
+            </div>
             <button type="submit" id="submitBtn">Start Refactoring</button>
         </form>
         <div class="status" id="status"></div>
@@ -68,12 +81,94 @@
         const status = document.getElementById('status');
         const downloadLink = document.getElementById('downloadLink');
         const btn = document.getElementById('submitBtn');
+        const pickFolderBtn = document.getElementById('pickFolderBtn');
+        const selectedFolder = document.getElementById('selectedFolder');
+
+        let outputDirHandle = null;
+
+        const supportsDirectSave = typeof window.showDirectoryPicker === 'function';
+        if (!supportsDirectSave) {
+            document.getElementById('directSaveEnabled').disabled = true;
+            pickFolderBtn.disabled = true;
+            selectedFolder.textContent = 'Direct save is not supported in this browser. Fallback to ZIP download.';
+        }
+
+        pickFolderBtn.onclick = async () => {
+            if (!supportsDirectSave) return;
+            try {
+                outputDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                selectedFolder.textContent = `Selected folder: ${outputDirHandle.name}`;
+            } catch (err) {
+                selectedFolder.textContent = 'Folder selection cancelled.';
+            }
+        };
+
+        async function writeFileToSelectedDirectory(relativePath, content) {
+            const segments = relativePath.split('/').filter(Boolean);
+            if (!segments.length) return;
+
+            let dirHandle = outputDirHandle;
+            for (let i = 0; i < segments.length - 1; i += 1) {
+                dirHandle = await dirHandle.getDirectoryHandle(segments[i], { create: true });
+            }
+
+            const fileHandle = await dirHandle.getFileHandle(segments[segments.length - 1], { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(content);
+            await writable.close();
+        }
+
+        async function runStreamingSave(formData) {
+            const res = await fetch('/refactor-stream', { method: 'POST', body: formData });
+            if (!res.ok || !res.body) throw new Error('Server stream failed');
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let savedCount = 0;
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    const msg = JSON.parse(line);
+
+                    if (msg.type === 'error') {
+                        throw new Error(msg.message || 'Unknown stream error');
+                    }
+
+                    if (msg.type === 'start') {
+                        status.textContent = `Started conversion in ${msg.mode} mode (${msg.total_files} source files)`;
+                    }
+
+                    if (msg.type === 'file') {
+                        await writeFileToSelectedDirectory(msg.path, msg.content);
+                        savedCount += 1;
+                        status.textContent = `Saved ${savedCount} file(s) to ${outputDirHandle.name}...`;
+                    }
+
+                    if (msg.type === 'progress') {
+                        status.textContent = `Processed ${msg.processed}/${msg.total} source file(s); saved ${savedCount} generated file(s)...`;
+                    }
+
+                    if (msg.type === 'done') {
+                        status.textContent = `Done. Saved ${savedCount} file(s) in ${outputDirHandle.name}.`;
+                    }
+                }
+            }
+        }
 
         form.onsubmit = async (e) => {
             e.preventDefault();
             btn.disabled = true;
-            status.textContent = "Uploading and processing... (This may take a few minutes)";
-            downloadLink.textContent = "";
+            status.textContent = 'Uploading and processing...';
+            downloadLink.textContent = '';
 
             const formData = new FormData();
             formData.append('file', document.getElementById('fileInput').files[0]);
@@ -83,19 +178,32 @@
             formData.append('web_search_results', document.getElementById('webSearchResults').value);
             formData.append('performance_mode', document.getElementById('performanceMode').value);
 
+            const wantsDirectSave = document.getElementById('directSaveEnabled').checked;
+
             try {
+                if (wantsDirectSave) {
+                    if (!supportsDirectSave) {
+                        throw new Error('Direct save requires a Chromium-based browser (Chrome/Edge).');
+                    }
+                    if (!outputDirHandle) {
+                        throw new Error('Please choose an output folder first.');
+                    }
+                    await runStreamingSave(formData);
+                    return;
+                }
+
                 const res = await fetch('/refactor', { method: 'POST', body: formData });
-                if (!res.ok) throw new Error("Server Error");
+                if (!res.ok) throw new Error('Server Error');
 
                 const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
 
                 downloadLink.href = url;
-                downloadLink.download = "refactored_project.zip";
-                downloadLink.textContent = "Download Complete! Click here.";
-                status.textContent = "Done.";
+                downloadLink.download = 'refactored_project.zip';
+                downloadLink.textContent = 'Download Complete! Click here.';
+                status.textContent = 'Done.';
             } catch (err) {
-                status.textContent = "Error: " + err.message;
+                status.textContent = 'Error: ' + err.message;
             } finally {
                 btn.disabled = false;
             }

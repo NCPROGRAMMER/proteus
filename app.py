@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional
 from urllib.parse import quote_plus
 
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 app = FastAPI()
@@ -353,6 +353,15 @@ def _build_generation_config(mode: str) -> Dict[str, Any]:
     return profiles.get(mode, profiles["balanced"])
 
 
+def _safe_relpath(path: str, base_dir: str) -> str:
+    return os.path.relpath(path, base_dir).replace(os.sep, "/")
+
+
+def _read_text_file(path: str) -> str:
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
 async def process_file(
     file_path: str,
     user_instructions: str,
@@ -360,16 +369,15 @@ async def process_file(
     client: httpx.AsyncClient,
     extract_root: str,
     mode: str,
-):
+) -> List[str]:
     filename = os.path.basename(file_path)
     if os.path.splitext(filename)[1].lower() not in ALLOWED_EXTENSIONS:
-        return
+        return []
 
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
+        content = _read_text_file(file_path)
     except Exception:
-        return
+        return []
 
     if len(content) > MAX_FILE_CHARS:
         print(
@@ -426,21 +434,64 @@ async def process_file(
             print(f"✅ Converted {filename} into {len(new_files)} new files:")
             for nf in new_files:
                 print(f"   -> {nf}")
-        else:
-            cleaned_code = raw_output.strip()
-            if cleaned_code.startswith("```"):
-                cleaned_code = cleaned_code.split("\n", 1)[1].rsplit("\n", 1)[0]
+            return new_files
 
-            if len(cleaned_code) > 0 and "I cannot assist" not in cleaned_code:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(cleaned_code)
-                print(f"✅ Refactored {filename} (Single file update)")
+        cleaned_code = raw_output.strip()
+        if cleaned_code.startswith("```"):
+            cleaned_code = cleaned_code.split("\n", 1)[1].rsplit("\n", 1)[0]
+
+        if len(cleaned_code) > 0 and "I cannot assist" not in cleaned_code:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(cleaned_code)
+            rel = _safe_relpath(file_path, extract_root)
+            print(f"✅ Refactored {filename} (Single file update)")
+            return [rel]
 
     except Exception as e:
         import traceback
 
         print(f"❌ Error processing {filename}: {type(e).__name__} - {e}")
         traceback.print_exc()
+
+    return []
+
+
+def _prepare_upload_input(uploaded_path: str, extract_dir: str, file_name: str) -> Optional[Dict[str, str]]:
+    uploaded_ext = os.path.splitext(file_name or "")[1].lower()
+    if uploaded_ext == ".zip":
+        with zipfile.ZipFile(uploaded_path, 'r') as z:
+            z.extractall(extract_dir)
+        return None
+
+    if uploaded_ext not in ALLOWED_EXTENSIONS:
+        return {
+            "error": (
+                f"Unsupported file type: {uploaded_ext or 'unknown'}. "
+                "Upload a .zip or a supported source file extension."
+            )
+        }
+
+    safe_name = os.path.basename(file_name or f"uploaded{uploaded_ext}")
+    shutil.copy2(uploaded_path, os.path.join(extract_dir, safe_name))
+    return None
+
+
+def _discover_files(extract_dir: str) -> List[str]:
+    files_to_process: List[str] = []
+    for root, _, files in os.walk(extract_dir):
+        for filename in files:
+            files_to_process.append(os.path.join(root, filename))
+    return files_to_process
+
+
+def _estimate_total_chars(files_to_process: List[str]) -> int:
+    total_chars = 0
+    for fp in files_to_process:
+        try:
+            total_chars += len(_read_text_file(fp))
+        except Exception:
+            continue
+    return total_chars
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -469,37 +520,16 @@ async def refactor_endpoint(
         with open(uploaded_path, "wb") as f:
             shutil.copyfileobj(file.file, f)
 
-        uploaded_ext = os.path.splitext(file.filename or "")[1].lower()
-        if uploaded_ext == ".zip":
-            with zipfile.ZipFile(uploaded_path, 'r') as z:
-                z.extractall(extract_dir)
-        else:
-            if uploaded_ext not in ALLOWED_EXTENSIONS:
-                return {
-                    "error": (
-                        f"Unsupported file type: {uploaded_ext or 'unknown'}. "
-                        "Upload a .zip or a supported source file extension."
-                    )
-                }
-            safe_name = os.path.basename(file.filename or f"uploaded{uploaded_ext}")
-            shutil.copy2(uploaded_path, os.path.join(extract_dir, safe_name))
+        input_error = _prepare_upload_input(uploaded_path, extract_dir, file.filename or "")
+        if input_error:
+            return input_error
 
-        files_to_process = []
-        for root, _, files in os.walk(extract_dir):
-            for filename in files:
-                files_to_process.append(os.path.join(root, filename))
-
-        sem = asyncio.Semaphore(max(1, int(os.getenv("OLLAMA_CONCURRENCY", "1"))))
-
-        total_chars = 0
-        for fp in files_to_process:
-            try:
-                with open(fp, "r", encoding="utf-8") as src:
-                    total_chars += len(src.read())
-            except Exception:
-                continue
+        files_to_process = _discover_files(extract_dir)
+        total_chars = _estimate_total_chars(files_to_process)
         mode = _resolve_profile(performance_mode, total_chars)
         print(f"⚙️ Processing mode: {mode} (total source chars: {total_chars})")
+
+        sem = asyncio.Semaphore(max(1, int(os.getenv("OLLAMA_CONCURRENCY", "1"))))
 
         async with httpx.AsyncClient(
             headers={
@@ -541,3 +571,77 @@ async def refactor_endpoint(
 
     finally:
         background_tasks.add_task(shutil.rmtree, work_dir)
+
+
+@app.post("/refactor-stream")
+async def refactor_stream_endpoint(
+    file: UploadFile = File(...),
+    instructions: str = Form(...),
+    web_search_enabled: bool = Form(False),
+    web_search_query: str = Form(""),
+    web_search_results: int = Form(5),
+    performance_mode: str = Form("auto"),
+):
+    work_dir = tempfile.mkdtemp()
+    uploaded_path = os.path.join(work_dir, file.filename or "uploaded_input")
+    extract_dir = os.path.join(work_dir, "source")
+    os.makedirs(extract_dir, exist_ok=True)
+
+    with open(uploaded_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    input_error = _prepare_upload_input(uploaded_path, extract_dir, file.filename or "")
+
+    async def stream_results():
+        try:
+            if input_error:
+                yield json.dumps({"type": "error", "message": input_error.get("error", "Invalid input")}) + "\n"
+                return
+
+            files_to_process = _discover_files(extract_dir)
+            total_chars = _estimate_total_chars(files_to_process)
+            mode = _resolve_profile(performance_mode, total_chars)
+            yield json.dumps({"type": "start", "total_files": len(files_to_process), "mode": mode}) + "\n"
+
+            async with httpx.AsyncClient(
+                headers={
+                    "User-Agent": "local-chat/1.0 (+https://localhost)",
+                }
+            ) as client:
+                search_query = (web_search_query or "").strip() or instructions
+                web_context = ""
+                if web_search_enabled:
+                    bounded_results = max(1, min(web_search_results, 10))
+                    web_context = await fetch_web_context(
+                        client,
+                        search_query,
+                        max_results=bounded_results,
+                    )
+
+                for idx, fp in enumerate(files_to_process, start=1):
+                    changed_files = await process_file(fp, instructions, web_context, client, extract_dir, mode)
+                    for rel_path in changed_files:
+                        abs_path = os.path.join(extract_dir, rel_path)
+                        if not os.path.exists(abs_path):
+                            continue
+                        try:
+                            content = _read_text_file(abs_path)
+                        except Exception:
+                            continue
+                        yield json.dumps({
+                            "type": "file",
+                            "path": rel_path,
+                            "content": content,
+                            "processed": idx,
+                            "total": len(files_to_process),
+                        }) + "\n"
+
+                    yield json.dumps({"type": "progress", "processed": idx, "total": len(files_to_process)}) + "\n"
+
+            yield json.dumps({"type": "done", "message": "Conversion complete"}) + "\n"
+        except Exception as e:
+            yield json.dumps({"type": "error", "message": str(e)}) + "\n"
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
+
+    return StreamingResponse(stream_results(), media_type="application/x-ndjson")

@@ -90,6 +90,18 @@ export MAX_FILE_CHARS=20000
 
 For Python-to-Java conversion of a simple script, Speed/Auto mode on GPU hardware should substantially reduce total runtime versus the default high-context profile.
 
+
+## Direct-to-Folder Save (No Manual Download Click)
+
+You can now skip the final download step in supported browsers:
+
+1. Check **Save directly to local folder (Chrome/Edge)** in the UI.
+2. Click **Choose Output Folder** and select a directory on your machine.
+3. Start refactoring.
+4. Proteus will stream generated files and write them into that folder as conversion progresses.
+
+> Note: direct folder writes use the browser File System Access API (supported in Chromium browsers such as Chrome/Edge). Other browsers automatically fall back to ZIP download.
+
 ## Project Structure
 
 ```text
