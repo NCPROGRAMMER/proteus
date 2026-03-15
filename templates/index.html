@@ -3,54 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Code Refactor</title>
+    <title>Proteus • AI Refactor Tool</title>
     <style>
-        :root { --primary: #2563eb; --bg: #f8fafc; --surface: #ffffff; }
-        body { font-family: sans-serif; background: var(--bg); display: flex; justify-content: center; padding-top: 50px; }
-        .card { background: var(--surface); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
-        h1 { margin-top: 0; color: #1e293b; font-size: 1.5rem; }
-        .form-group { margin-bottom: 1.5rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; }
-        input[type="file"], input[type="text"], input[type="number"] { border: 1px solid #cbd5e1; padding: 0.5rem; width: 100%; border-radius: 6px; box-sizing: border-box; }
-        textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; resize: vertical; min-height: 100px; font-family: monospace; }
-        button { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; transition: background 0.2s; }
-        button:hover { background: #1d4ed8; }
-        button:disabled { background: #94a3b8; cursor: not-allowed; }
-        .status { margin-top: 1rem; text-align: center; color: #64748b; font-size: 0.9rem; }
-        .download-btn { display: block; text-align: center; margin-top: 1rem; color: var(--primary); text-decoration: none; font-weight: bold; }
-        .inline-check { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; color: #334155; }
-        .hint { margin-top: 0.4rem; color: #64748b; font-size: 0.8rem; }
+        :root {
+            --bg: #0b1020;
+            --bg-soft: #131a2d;
+            --card: rgba(19, 26, 45, 0.85);
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --line: rgba(148, 163, 184, 0.25);
+            --accent: #60a5fa;
+            --accent-2: #a78bfa;
+            --ok: #22c55e;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Inter, Segoe UI, Roboto, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(1200px 700px at 0% 0%, rgba(96,165,250,0.15), transparent 60%),
+                radial-gradient(900px 600px at 100% 0%, rgba(167,139,250,0.16), transparent 60%),
+                linear-gradient(180deg, #080c19 0%, #0b1020 55%, #0a0f1b 100%);
+            display: flex;
+            justify-content: center;
+            padding: 34px 16px;
+        }
+
+        .shell { width: 100%; max-width: 980px; }
+
+        .hero {
+            margin-bottom: 16px;
+            padding: 18px 20px;
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: linear-gradient(135deg, rgba(96,165,250,0.15), rgba(167,139,250,0.15));
+            backdrop-filter: blur(8px);
+        }
+
+        .hero h1 { margin: 0 0 8px; font-size: 1.7rem; }
+        .hero p { margin: 0; color: #cbd5e1; }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 20px 60px rgba(2, 6, 23, 0.55);
+            backdrop-filter: blur(8px);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .full { grid-column: 1 / -1; }
+
+        .form-group {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px;
+            background: rgba(2, 6, 23, 0.35);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 650;
+            color: #cfe0ff;
+            font-size: 0.95rem;
+        }
+
+        input[type="file"],
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            border: 1px solid rgba(148,163,184,0.35);
+            background: rgba(15, 23, 42, 0.75);
+            color: var(--text);
+            border-radius: 10px;
+            padding: 10px 12px;
+            outline: none;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(96,165,250,0.2);
+        }
+
+        .hint {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+
+        .inline-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            color: #dbeafe;
+            margin-bottom: 8px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        button {
+            border: none;
+            border-radius: 10px;
+            padding: 12px 16px;
+            cursor: pointer;
+            font-weight: 650;
+            color: white;
+            transition: transform 0.12s ease, filter 0.2s ease;
+        }
+
+        button:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+        .primary-btn {
+            flex: 1;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        }
+
+        .secondary-btn {
+            background: linear-gradient(90deg, #334155, #475569);
+        }
+
+        .status {
+            margin-top: 14px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(15,23,42,0.65);
+            border: 1px dashed var(--line);
+            color: #dbeafe;
+            font-size: 0.92rem;
+        }
+
+        .download-btn {
+            display: inline-block;
+            margin-top: 12px;
+            color: #bfdbfe;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .pill {
+            padding: 5px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(148,163,184,0.35);
+            color: #cbd5e1;
+            font-size: 0.75rem;
+            background: rgba(2,6,23,0.5);
+        }
+
+        @media (max-width: 840px) {
+            .grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>AI Refactor Tool</h1>
-        <form id="refactorForm">
-            <div class="form-group">
-                <label>1. Upload Project (.zip) or Single Source File</label>
-                <input type="file" id="fileInput" accept=".zip,.py,.pyi,.ipynb,.js,.mjs,.cjs,.ts,.tsx,.jsx,.vue,.svelte,.html,.htm,.css,.scss,.sass,.less,.java,.kt,.kts,.groovy,.cpp,.cc,.cxx,.c,.h,.hpp,.cs,.fs,.rs,.go,.php,.rb,.swift,.scala,.json,.jsonc,.yaml,.yml,.toml,.ini,.env,.xml,.xsd,.xsl,.sql,.graphql,.gql,.sh,.bash,.zsh,.ps1,.bat,.dockerfile,.tf,.tfvars,.md,.txt" required>
-                <div class="hint">You can upload either a full project zip or a single code/config file.</div>
+    <div class="shell">
+        <div class="hero">
+            <h1>⚡ Proteus Refactor Studio</h1>
+            <p>Upload one or more source files, individual archives, or a project zip. Convert faster, and optionally stream output directly into a local folder.</p>
+            <div class="pills">
+                <span class="pill">Multi-file upload</span>
+                <span class="pill">Zip + files together</span>
+                <span class="pill">Direct save mode</span>
+                <span class="pill">Performance profiles</span>
             </div>
-            <div class="form-group">
-                <label>2. Instructions</label>
-                <textarea id="instructions" placeholder="e.g. Add TypeScript types to all variables..." required></textarea>
-            </div>
-            <div class="form-group">
-                <label class="inline-check">
-                    <input type="checkbox" id="webSearchEnabled">
-                    3. Add web research to prompt context
-                </label>
-                <input type="text" id="webSearchQuery" placeholder="Optional custom search query (defaults to your instructions)">
-                <div class="hint">When enabled, local-chat will query public web search endpoints and include concise snippets in prompt context.</div>
-            </div>
-            <div class="form-group">
-                <label>4. Web snippet count (1-10)</label>
-                <input type="number" id="webSearchResults" min="1" max="10" value="5">
-            </div>
-            <button type="submit" id="submitBtn">Start Refactoring</button>
-        </form>
-        <div class="status" id="status"></div>
-        <a id="downloadLink" class="download-btn"></a>
+        </div>
+
+        <div class="card">
+            <form id="refactorForm">
+                <div class="grid">
+                    <div class="form-group full">
+                        <label>1) Upload source input(s)</label>
+                        <input type="file" id="fileInput" multiple accept=".zip,.py,.pyi,.ipynb,.js,.mjs,.cjs,.ts,.tsx,.jsx,.vue,.svelte,.html,.htm,.css,.scss,.sass,.less,.java,.kt,.kts,.groovy,.cpp,.cc,.cxx,.c,.h,.hpp,.cs,.fs,.rs,.go,.php,.rb,.swift,.scala,.json,.jsonc,.yaml,.yml,.toml,.ini,.env,.xml,.xsd,.xsl,.sql,.graphql,.gql,.sh,.bash,.zsh,.ps1,.bat,.dockerfile,.tf,.tfvars,.md,.txt" required>
+                        <div class="hint">Attach multiple files, one or more zip archives, or any mix of both in a single run.</div>
+                    </div>
+
+                    <div class="form-group full">
+                        <label>2) Instructions</label>
+                        <textarea id="instructions" placeholder="e.g. Convert this Python utility and helper files to Java Spring Boot with clean package structure" required></textarea>
+                    </div>
+
+                    <div class="form-group full">
+                        <label class="inline-check">
+                            <input type="checkbox" id="webSearchEnabled">
+                            Add web research to prompt context
+                        </label>
+                        <input type="text" id="webSearchQuery" placeholder="Optional custom search query (defaults to instructions)">
+                        <div class="hint">When enabled, Proteus adds concise public web snippets to prompt context.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>3) Performance mode</label>
+                        <select id="performanceMode">
+                            <option value="auto" selected>Auto (recommended)</option>
+                            <option value="speed">Speed (faster, lower context)</option>
+                            <option value="balanced">Balanced</option>
+                            <option value="quality">Quality (slowest, best detail)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>4) Web snippet count (1-10)</label>
+                        <input type="number" id="webSearchResults" min="1" max="10" value="5">
+                    </div>
+
+                    <div class="form-group full">
+                        <label class="inline-check">
+                            <input type="checkbox" id="directSaveEnabled">
+                            Save directly to local folder (Chrome/Edge)
+                        </label>
+                        <div class="actions">
+                            <button type="button" id="pickFolderBtn" class="secondary-btn">Choose Output Folder</button>
+                        </div>
+                        <div class="hint" id="selectedFolder">No folder selected.</div>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" id="submitBtn" class="primary-btn">Start Refactoring</button>
+                </div>
+            </form>
+
+            <div class="status" id="status">Ready.</div>
+            <a id="downloadLink" class="download-btn"></a>
+        </div>
     </div>
 
     <script>
@@ -58,33 +259,172 @@
         const status = document.getElementById('status');
         const downloadLink = document.getElementById('downloadLink');
         const btn = document.getElementById('submitBtn');
+        const pickFolderBtn = document.getElementById('pickFolderBtn');
+        const selectedFolder = document.getElementById('selectedFolder');
 
-        form.onsubmit = async (e) => {
-            e.preventDefault();
-            btn.disabled = true;
-            status.textContent = "Uploading and processing... (This may take a few minutes)";
-            downloadLink.textContent = "";
+        let outputDirHandle = null;
 
+        const supportsDirectSave = typeof window.showDirectoryPicker === 'function';
+        if (!supportsDirectSave) {
+            document.getElementById('directSaveEnabled').disabled = true;
+            pickFolderBtn.disabled = true;
+            selectedFolder.textContent = 'Direct save is not supported in this browser. ZIP download fallback remains available.';
+        }
+
+        pickFolderBtn.onclick = async () => {
+            if (!supportsDirectSave) return;
+            try {
+                outputDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                selectedFolder.textContent = `Selected folder: ${outputDirHandle.name}`;
+            } catch (err) {
+                selectedFolder.textContent = 'Folder selection cancelled.';
+            }
+        };
+
+        function sanitizeSegment(segment, fallbackName) {
+            let cleaned = (segment || '').trim();
+            cleaned = cleaned.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
+            cleaned = cleaned.replace(/[. ]+$/g, '');
+            if (!cleaned || cleaned === '.' || cleaned === '..') {
+                return fallbackName;
+            }
+            return cleaned;
+        }
+
+        function normalizeRelativePath(relativePath) {
+            const normalized = (relativePath || '').replace(/\\/g, '/');
+            const rawSegments = normalized.split('/').filter(Boolean);
+            return rawSegments.map((seg, idx) => {
+                const isFile = idx === rawSegments.length - 1;
+                return sanitizeSegment(seg, isFile ? 'converted_file.txt' : 'folder');
+            });
+        }
+
+        async function writeFileToSelectedDirectory(relativePath, content) {
+            const segments = normalizeRelativePath(relativePath);
+            if (!segments.length) return;
+
+            let dirHandle = outputDirHandle;
+            for (let i = 0; i < segments.length - 1; i += 1) {
+                dirHandle = await dirHandle.getDirectoryHandle(segments[i], { create: true });
+            }
+
+            const fileHandle = await dirHandle.getFileHandle(segments[segments.length - 1], { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(content);
+            await writable.close();
+        }
+
+        async function runStreamingSave(formData) {
+            const res = await fetch('/refactor-stream', { method: 'POST', body: formData });
+            if (!res.ok || !res.body) throw new Error('Server stream failed');
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let savedCount = 0;
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    const msg = JSON.parse(line);
+
+                    if (msg.type === 'error') {
+                        throw new Error(msg.message || 'Unknown stream error');
+                    }
+
+                    if (msg.type === 'warning') {
+                        status.textContent = `Warning: ${msg.message}`;
+                    }
+
+                    if (msg.type === 'start') {
+                        status.textContent = `Started conversion in ${msg.mode} mode (${msg.total_files} source files)`;
+                    }
+
+                    if (msg.type === 'file') {
+                        await writeFileToSelectedDirectory(msg.path, msg.content);
+                        savedCount += 1;
+                        status.textContent = `Saved ${savedCount} file(s) to ${outputDirHandle.name}...`;
+                    }
+
+                    if (msg.type === 'progress') {
+                        status.textContent = `Processed ${msg.processed}/${msg.total} source file(s); saved ${savedCount} generated file(s)...`;
+                    }
+
+                    if (msg.type === 'done') {
+                        status.textContent = `Done. Saved ${savedCount} file(s) in ${outputDirHandle.name}.`;
+                    }
+                }
+            }
+        }
+
+        function buildFormData() {
             const formData = new FormData();
-            formData.append('file', document.getElementById('fileInput').files[0]);
+            const files = document.getElementById('fileInput').files;
+            if (!files || files.length === 0) {
+                throw new Error('Please select at least one file or zip.');
+            }
+
+            for (const selectedFile of files) {
+                formData.append('files', selectedFile);
+            }
+
             formData.append('instructions', document.getElementById('instructions').value);
             formData.append('web_search_enabled', document.getElementById('webSearchEnabled').checked);
             formData.append('web_search_query', document.getElementById('webSearchQuery').value);
             formData.append('web_search_results', document.getElementById('webSearchResults').value);
+            formData.append('performance_mode', document.getElementById('performanceMode').value);
+            return formData;
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            btn.disabled = true;
+            status.textContent = 'Uploading and processing...';
+            downloadLink.textContent = '';
+
+            let formData;
+            try {
+                formData = buildFormData();
+            } catch (err) {
+                status.textContent = 'Error: ' + err.message;
+                btn.disabled = false;
+                return;
+            }
+
+            const wantsDirectSave = document.getElementById('directSaveEnabled').checked;
 
             try {
+                if (wantsDirectSave) {
+                    if (!supportsDirectSave) {
+                        throw new Error('Direct save requires a Chromium-based browser (Chrome/Edge).');
+                    }
+                    if (!outputDirHandle) {
+                        throw new Error('Please choose an output folder first.');
+                    }
+                    await runStreamingSave(formData);
+                    return;
+                }
+
                 const res = await fetch('/refactor', { method: 'POST', body: formData });
-                if (!res.ok) throw new Error("Server Error");
+                if (!res.ok) throw new Error('Server Error');
 
                 const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
 
                 downloadLink.href = url;
-                downloadLink.download = "refactored_project.zip";
-                downloadLink.textContent = "Download Complete! Click here.";
-                status.textContent = "Done.";
+                downloadLink.download = 'refactored_project.zip';
+                downloadLink.textContent = 'Download complete • Click here';
+                status.textContent = 'Done.';
             } catch (err) {
-                status.textContent = "Error: " + err.message;
+                status.textContent = 'Error: ' + err.message;
             } finally {
                 btn.disabled = false;
             }

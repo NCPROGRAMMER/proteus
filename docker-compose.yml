@@ -5,6 +5,7 @@ services:
       - "8000:8000"
     depends_on:
       - ollama
+      - ollama_model_init
     environment:
       - OLLAMA_HOST=ollama
     restart: always
@@ -18,6 +19,31 @@ services:
       - ollama_data:/root/.ollama
     # No deploy/resources section = Automatic CPU usage
     restart: always
+
+  ollama_model_init:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - FAST_MODEL_NAME=${FAST_MODEL_NAME:-qwen2.5-coder:7b}
+      - BALANCED_MODEL_NAME=${BALANCED_MODEL_NAME:-qwen2.5-coder:14b}
+      - QUALITY_MODEL_NAME=${QUALITY_MODEL_NAME:-qwen2.5-coder:14b}
+    command: >
+      sh -c "
+      until ollama list >/dev/null 2>&1; do
+        echo 'Waiting for Ollama API...';
+        sleep 2;
+      done;
+      echo 'Pulling FAST model: '$FAST_MODEL_NAME;
+      ollama pull $FAST_MODEL_NAME;
+      echo 'Pulling BALANCED model: '$BALANCED_MODEL_NAME;
+      ollama pull $BALANCED_MODEL_NAME;
+      echo 'Pulling QUALITY model: '$QUALITY_MODEL_NAME;
+      ollama pull $QUALITY_MODEL_NAME;
+      echo 'Model warm-up complete.'
+      "
+    restart: "no"
 
 volumes:
   ollama_data:
