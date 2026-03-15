@@ -33,17 +33,23 @@ Use the GPU-optimized compose file.
 docker compose -f docker-compose.gpu.yml up --build -d
 ```
 
-### 2. Download the Model
-You must download the model once after starting the containers. We use `qwen2.5-coder:14b` for the best balance of logic and speed.
+### 2. Automatic Model Prefetch on `docker compose up`
+The compose stack now includes an `ollama_model_init` service that automatically pulls models for:
+- **Fast mode** (`FAST_MODEL_NAME`, default `qwen2.5-coder:7b`)
+- **Balanced mode** (`BALANCED_MODEL_NAME`, default `qwen2.5-coder:14b`)
+- **Quality mode** (`QUALITY_MODEL_NAME`, default `qwen2.5-coder:14b`)
 
-**Linux / Mac:**
+You can override them before startup:
 ```bash
-docker exec -it ollama_backend ollama pull qwen2.5-coder:14b
+export FAST_MODEL_NAME=qwen2.5-coder:7b
+export BALANCED_MODEL_NAME=qwen2.5-coder:14b
+export QUALITY_MODEL_NAME=qwen2.5-coder:14b
+docker compose up --build -d
 ```
 
-**Windows (Git Bash):**
+You can monitor pulls with:
 ```bash
-winpty docker exec -it ollama_backend ollama pull qwen2.5-coder:14b
+docker compose logs -f ollama_model_init
 ```
 
 ### 3. Usage
@@ -77,7 +83,8 @@ docker exec -it ollama_backend ollama pull qwen2.5-coder:7b
 ```bash
 export PROTEUS_PROFILE=auto
 export FAST_MODEL_NAME=qwen2.5-coder:7b
-export MODEL_NAME=qwen2.5-coder:14b
+export BALANCED_MODEL_NAME=qwen2.5-coder:14b
+export QUALITY_MODEL_NAME=qwen2.5-coder:14b
 export OLLAMA_CONCURRENCY=1
 export OLLAMA_KEEP_ALIVE=30m
 export MAX_FILE_CHARS=20000
@@ -87,7 +94,7 @@ export AUTO_PULL_MODELS=true
 4. In the UI, choose **Performance mode = Speed** (or Auto).
 
 ### What these settings do
-- `AUTO_PULL_MODELS=true` makes Proteus automatically pull missing configured models (`MODEL_NAME`, `FAST_MODEL_NAME`) before conversion starts.
+- `AUTO_PULL_MODELS=true` makes Proteus automatically pull missing configured models (`FAST_MODEL_NAME`, `BALANCED_MODEL_NAME`, `QUALITY_MODEL_NAME`) before conversion starts.
 - `Speed` mode uses a smaller context window and lower output token cap to reduce generation latency.
 - `Auto` mode selects `Speed` for smaller inputs and `Balanced` for larger ones.
 - `MAX_FILE_CHARS` limits huge source files from overloading prompt size (improves local responsiveness).
@@ -129,4 +136,4 @@ You can now skip the final download step in supported browsers:
 -   **Logs:** Run `docker compose logs -f app` to see what the AI is writing in real-time.
 -   **Timeout:** The application is configured to wait indefinitely for the LLM. If you experience network timeouts (e.g. Nginx 504 Gateway Time-out), check your reverse proxy settings.
 -   **Memory:** If the container crashes on large files, try a smaller model like `qwen2.5-coder:7b`.
--   **404 from Ollama `/api/generate`:** This usually means the model is not pulled yet. Run `docker exec -it ollama_backend ollama pull qwen2.5-coder:14b` (or your configured `MODEL_NAME`).
+-   **404 from Ollama `/api/generate`:** This usually means the model is not pulled yet. Run `docker exec -it ollama_backend ollama pull qwen2.5-coder:14b` (or your configured `BALANCED_MODEL_NAME` / `QUALITY_MODEL_NAME`).

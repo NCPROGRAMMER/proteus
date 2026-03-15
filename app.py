@@ -27,10 +27,12 @@ OLLAMA_TAGS_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/api/tags"
 OLLAMA_PULL_URL = f"{OLLAMA_BASE_URL.rstrip('/')}/api/pull"
 AUTO_PULL_MODELS = os.getenv("AUTO_PULL_MODELS", "true").strip().lower() in {"1", "true", "yes", "on"}
 
-# Default quality model for larger, multi-file conversions.
-MODEL_NAME = os.getenv("MODEL_NAME", "qwen2.5-coder:14b")
-# Faster model profile for local workstation throughput.
+# Mode-specific models.
 FAST_MODEL_NAME = os.getenv("FAST_MODEL_NAME", "qwen2.5-coder:7b")
+BALANCED_MODEL_NAME = os.getenv("BALANCED_MODEL_NAME", os.getenv("MODEL_NAME", "qwen2.5-coder:14b"))
+QUALITY_MODEL_NAME = os.getenv("QUALITY_MODEL_NAME", os.getenv("MODEL_NAME", "qwen2.5-coder:14b"))
+# Backward-compat alias for older configs.
+MODEL_NAME = BALANCED_MODEL_NAME
 MAX_WEB_SNIPPET_CHARS = 320
 PROFILE_NAME = os.getenv("PROTEUS_PROFILE", "balanced").strip().lower()
 OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
@@ -362,7 +364,7 @@ def _build_generation_config(mode: str) -> Dict[str, Any]:
             },
         },
         "balanced": {
-            "model": MODEL_NAME,
+            "model": BALANCED_MODEL_NAME,
             "options": {
                 "temperature": 0.2,
                 "num_ctx": 8192,
@@ -370,7 +372,7 @@ def _build_generation_config(mode: str) -> Dict[str, Any]:
             },
         },
         "quality": {
-            "model": MODEL_NAME,
+            "model": QUALITY_MODEL_NAME,
             "options": {
                 "temperature": 0.2,
                 "num_ctx": 16384,
@@ -458,7 +460,7 @@ async def _pull_model_if_missing(client: httpx.AsyncClient, model_name: str) -> 
 
 
 async def _ensure_required_models(client: httpx.AsyncClient, available_models: set) -> Dict[str, Any]:
-    required = {MODEL_NAME, FAST_MODEL_NAME}
+    required = {FAST_MODEL_NAME, BALANCED_MODEL_NAME, QUALITY_MODEL_NAME}
     missing = sorted(m for m in required if m and m not in available_models)
 
     if not AUTO_PULL_MODELS or not missing:
@@ -490,13 +492,13 @@ async def _validate_ollama_setup(client: httpx.AsyncClient) -> Dict[str, Any]:
 
     model_names = ensured.get("models", set())
 
-    if MODEL_NAME not in model_names and FAST_MODEL_NAME not in model_names:
+    if not ({FAST_MODEL_NAME, BALANCED_MODEL_NAME, QUALITY_MODEL_NAME} & model_names):
         return {
             "error": (
                 "No configured model is available in Ollama. "
-                f"Expected at least one of: {MODEL_NAME}, {FAST_MODEL_NAME}. "
+                f"Expected at least one of: {FAST_MODEL_NAME}, {BALANCED_MODEL_NAME}, {QUALITY_MODEL_NAME}. "
                 "Pull a model first, for example: "
-                f"docker exec -it ollama_backend ollama pull {MODEL_NAME}"
+                f"docker exec -it ollama_backend ollama pull {BALANCED_MODEL_NAME}"
             ),
             "models": model_names,
         }
@@ -519,12 +521,12 @@ def _resolve_mode_for_available_models(mode: str, available_models: set) -> Dict
                 ),
                 "error": None,
             }
-        if MODEL_NAME in available_models:
+        if BALANCED_MODEL_NAME in available_models:
             return {
                 "mode": "balanced",
                 "warning": (
                     f"Auto mode selected unavailable model '{desired}'. "
-                    f"Using balanced mode with '{MODEL_NAME}'."
+                    f"Using balanced mode with '{BALANCED_MODEL_NAME}'."
                 ),
                 "error": None,
             }
