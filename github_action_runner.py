@@ -57,9 +57,19 @@ async def convert_repo(source_dir: Path, instructions: str):
         raise RuntimeError("One or more files failed during AI conversion. Aborting before commit/push.")
 
 
+def reset_destination_repo(dest: Path):
+    for item in dest.iterdir():
+        if item.name in {".git", "README.md"}:
+            continue
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
+
+
 def copy_tree_contents(src: Path, dest: Path):
     for item in src.iterdir():
-        if item.name == ".git":
+        if item.name in {".git", "README.md"}:
             continue
         target = dest / item.name
         if item.is_dir():
@@ -107,6 +117,7 @@ def main():
         )
         asyncio.run(convert_repo(source_dir, instructions))
 
+        reset_destination_repo(dest_dir)
         copy_tree_contents(source_dir, dest_dir)
 
         run(["git", "config", "user.name", "github-actions[bot]"], cwd=str(dest_dir))
