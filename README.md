@@ -97,7 +97,10 @@ This repository now includes a workflow at `.github/workflows/repo-converter.yml
 ### Required GitHub Settings
 - Add repo/org variable `OLLAMA_URL` if using a hosted Ollama endpoint.
 - Optional variable `MODEL_NAME` to override the model.
-- Ensure `GITHUB_TOKEN` has permission to push to the destination repository.
+- `GITHUB_TOKEN` is used by default for Git authentication.
+- If either repository is private (or in another org), add:
+  - `CONTEXT_REPO_TOKEN` (secret): token that can read the context repo.
+  - `DESTINATION_REPO_TOKEN` (secret): token that can read/write the destination repo.
 
 ### Manual Trigger
 Go to **Actions → Repository Converter → Run workflow** and provide all three inputs.

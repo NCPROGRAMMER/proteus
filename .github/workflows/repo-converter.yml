@@ -34,6 +34,8 @@ jobs:
       - name: Run repository conversion
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONTEXT_REPO_TOKEN: ${{ secrets.CONTEXT_REPO_TOKEN }}
+          DESTINATION_REPO_TOKEN: ${{ secrets.DESTINATION_REPO_TOKEN }}
           OLLAMA_URL: ${{ vars.OLLAMA_URL }}
           MODEL_NAME: ${{ vars.MODEL_NAME }}
         run: |

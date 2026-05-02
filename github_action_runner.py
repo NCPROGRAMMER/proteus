@@ -13,7 +13,9 @@ from app import ALLOWED_EXTENSIONS, process_file
 
 def run(cmd, cwd=None):
     print(f"$ {' '.join(cmd)}")
-    subprocess.run(cmd, cwd=cwd, check=True)
+    env = os.environ.copy()
+    env.setdefault("GIT_TERMINAL_PROMPT", "0")
+    subprocess.run(cmd, cwd=cwd, check=True, env=env)
 
 
 def normalize_repo_url(url: str, token: str | None = None) -> str:
@@ -22,6 +24,20 @@ def normalize_repo_url(url: str, token: str | None = None) -> str:
     if token and "@" not in url:
         return url.replace("https://", f"https://x-access-token:{token}@", 1)
     return url
+
+
+def clone_repo(url: str, target: Path, branch: str | None = None, token: str | None = None, label: str = "repository"):
+    cmd = ["git", "clone", "--depth", "1"]
+    if branch:
+        cmd.extend(["--branch", branch])
+    cmd.extend([normalize_repo_url(url, token), str(target)])
+    try:
+        run(cmd)
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f"Failed to clone {label}. If this repo is private or in another org, set an appropriate token secret "
+            f"for that repo and pass it to the action runner. Git exited with code {exc.returncode}."
+        ) from exc
 
 
 async def convert_repo(source_dir: Path, instructions: str):
@@ -57,7 +73,8 @@ def main():
     parser.add_argument("--destination-repo", required=True, help="HTTPS URL of destination repository")
     parser.add_argument("--destination-stack", required=True, help="Target technology stack")
     parser.add_argument("--branch", default="main", help="Destination branch")
-    parser.add_argument("--token", default=os.getenv("GITHUB_TOKEN"), help="GitHub token for destination push")
+    parser.add_argument("--context-token", default=os.getenv("CONTEXT_REPO_TOKEN") or os.getenv("GITHUB_TOKEN"), help="Token for cloning context repo (optional for public repos)")
+    parser.add_argument("--destination-token", default=os.getenv("DESTINATION_REPO_TOKEN") or os.getenv("GITHUB_TOKEN"), help="Token for destination clone/push")
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -65,8 +82,8 @@ def main():
         source_dir = tmp_path / "context_repo"
         dest_dir = tmp_path / "destination_repo"
 
-        run(["git", "clone", "--depth", "1", normalize_repo_url(args.context_repo), str(source_dir)])
-        run(["git", "clone", "--depth", "1", "--branch", args.branch, normalize_repo_url(args.destination_repo, args.token), str(dest_dir)])
+        clone_repo(args.context_repo, source_dir, token=args.context_token, label="context repository")
+        clone_repo(args.destination_repo, dest_dir, branch=args.branch, token=args.destination_token, label="destination repository")
 
         instructions = (
             f"Convert this repository to {args.destination_stack}. "
