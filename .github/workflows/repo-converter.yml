@@ -20,10 +20,20 @@ on:
         required: false
         default: "x-access-token"
         type: string
+      model_name:
+        description: "Ollama model to pull and use"
+        required: false
+        default: "qwen2.5-coder:14b"
+        type: string
 
 jobs:
   convert:
     runs-on: ubuntu-latest
+    services:
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
     steps:
       - name: Checkout orchestrator repo
         uses: actions/checkout@v4
@@ -36,13 +46,30 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Wait for Ollama service
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then
+              echo "Ollama is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Ollama did not start in time" >&2
+          exit 1
+
+      - name: Pull model
+        run: |
+          curl -fsS http://127.0.0.1:11434/api/pull \
+            -d '{"name":"${{ inputs.model_name }}","stream":false}'
+
       - name: Run repository conversion
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CONTEXT_REPO_TOKEN: ${{ secrets.CONTEXT_REPO_TOKEN }}
           DESTINATION_REPO_TOKEN: ${{ secrets.DESTINATION_REPO_TOKEN }}
-          OLLAMA_URL: ${{ vars.OLLAMA_URL }}
-          MODEL_NAME: ${{ vars.MODEL_NAME }}
+          OLLAMA_URL: http://127.0.0.1:11434/api/generate
+          MODEL_NAME: ${{ inputs.model_name }}
         run: |
           python github_action_runner.py \
             --context-repo "${{ inputs.context_repo }}" \

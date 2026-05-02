@@ -87,20 +87,23 @@ This repository now includes a workflow at `.github/workflows/repo-converter.yml
 - `destination_repo`: HTTPS URL of the destination repository that receives converted code.
 - `destination_stack`: Target technology stack for conversion (for example, `Spring Boot`, `FastAPI`, `Node.js`).
 - `github_username`: GitHub username used for HTTPS auth (`x-access-token` recommended for PAT/app tokens).
+- `model_name`: Ollama model to pull inside the action before conversion (default: `qwen2.5-coder:14b`).
 
 ### How It Works
 1. Clones the context repo (source).
 2. Clones the destination repo on `main`.
-3. Runs AI conversion across supported files using `github_action_runner.py`.
-4. Clears destination repo content before copy (preserves `.git` and existing `README.md`).
-5. Copies converted output into destination repo (source `README.md` is skipped to preserve destination `README.md`).
-6. Commits and pushes to the destination repo `main` branch.
+3. Starts an Ollama service container and waits for health readiness.
+4. Pulls the selected model in the workflow.
+5. Runs AI conversion across supported files using `github_action_runner.py`.
+6. Clears destination repo content before copy (preserves `.git` and existing `README.md`).
+7. Copies converted output into destination repo (source `README.md` is skipped to preserve destination `README.md`).
+8. Commits and pushes to the destination repo `main` branch.
 
 ### Required GitHub Settings
-- Add repo/org variable `OLLAMA_URL` if using a hosted Ollama endpoint.
-- Optional variable `MODEL_NAME` to override the model.
+- `OLLAMA_URL` is set automatically by the workflow to the local Ollama service endpoint.
+- Model selection is controlled by the workflow input `model_name`.
 - `GITHUB_TOKEN` is used by default for Git authentication.
-- On GitHub-hosted runners, container-local hosts like `http://ollama:11434` are not reachable unless you run Ollama in the same network context. Use a reachable Ollama endpoint or a self-hosted runner.
+- This workflow starts an `ollama/ollama` service container and points the converter to `http://127.0.0.1:11434/api/generate` so it behaves like a local install directly inside GitHub Actions.
 - If either repository is private (or in another org), add:
   - `CONTEXT_REPO_TOKEN` (secret): token that can read the context repo.
   - `DESTINATION_REPO_TOKEN` (secret): token that can read/write the destination repo.
