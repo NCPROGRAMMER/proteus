@@ -15,6 +15,11 @@ on:
         description: "Target technology stack (for example: Spring Boot, FastAPI, Node.js)"
         required: true
         type: string
+      github_username:
+        description: "GitHub username for HTTPS auth (use x-access-token for PAT/app tokens)"
+        required: false
+        default: "x-access-token"
+        type: string
 
 jobs:
   convert:
@@ -43,4 +48,5 @@ jobs:
             --context-repo "${{ inputs.context_repo }}" \
             --destination-repo "${{ inputs.destination_repo }}" \
             --destination-stack "${{ inputs.destination_stack }}" \
+            --github-username "${{ inputs.github_username }}" \
             --branch main

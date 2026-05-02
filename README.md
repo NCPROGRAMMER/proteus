@@ -86,6 +86,7 @@ This repository now includes a workflow at `.github/workflows/repo-converter.yml
 - `context_repo`: HTTPS URL of the source repository to use as conversion context.
 - `destination_repo`: HTTPS URL of the destination repository that receives converted code.
 - `destination_stack`: Target technology stack for conversion (for example, `Spring Boot`, `FastAPI`, `Node.js`).
+- `github_username`: GitHub username used for HTTPS auth (`x-access-token` recommended for PAT/app tokens).
 
 ### How It Works
 1. Clones the context repo (source).
@@ -103,4 +104,4 @@ This repository now includes a workflow at `.github/workflows/repo-converter.yml
   - `DESTINATION_REPO_TOKEN` (secret): token that can read/write the destination repo.
 
 ### Manual Trigger
-Go to **Actions → Repository Converter → Run workflow** and provide all three inputs.
+Go to **Actions → Repository Converter → Run workflow** and provide the required inputs (plus optional `github_username` if needed).

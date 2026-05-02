@@ -18,19 +18,19 @@ def run(cmd, cwd=None):
     subprocess.run(cmd, cwd=cwd, check=True, env=env)
 
 
-def normalize_repo_url(url: str, token: str | None = None) -> str:
+def normalize_repo_url(url: str, token: str | None = None, username: str = "x-access-token") -> str:
     if not url.startswith("https://"):
         raise ValueError("Repository URLs must use HTTPS.")
     if token and "@" not in url:
-        return url.replace("https://", f"https://x-access-token:{token}@", 1)
+        return url.replace("https://", f"https://{username}:{token}@", 1)
     return url
 
 
-def clone_repo(url: str, target: Path, branch: str | None = None, token: str | None = None, label: str = "repository"):
+def clone_repo(url: str, target: Path, branch: str | None = None, token: str | None = None, username: str = "x-access-token", label: str = "repository"):
     cmd = ["git", "clone", "--depth", "1"]
     if branch:
         cmd.extend(["--branch", branch])
-    cmd.extend([normalize_repo_url(url, token), str(target)])
+    cmd.extend([normalize_repo_url(url, token, username), str(target)])
     try:
         run(cmd)
     except subprocess.CalledProcessError as exc:
@@ -72,6 +72,7 @@ def main():
     parser.add_argument("--context-repo", required=True, help="HTTPS URL of source repository")
     parser.add_argument("--destination-repo", required=True, help="HTTPS URL of destination repository")
     parser.add_argument("--destination-stack", required=True, help="Target technology stack")
+    parser.add_argument("--github-username", default=os.getenv("GITHUB_USERNAME", "x-access-token"), help="GitHub username for HTTPS auth")
     parser.add_argument("--branch", default="main", help="Destination branch")
     parser.add_argument("--context-token", default=os.getenv("CONTEXT_REPO_TOKEN") or os.getenv("GITHUB_TOKEN"), help="Token for cloning context repo (optional for public repos)")
     parser.add_argument("--destination-token", default=os.getenv("DESTINATION_REPO_TOKEN") or os.getenv("GITHUB_TOKEN"), help="Token for destination clone/push")
@@ -82,8 +83,8 @@ def main():
         source_dir = tmp_path / "context_repo"
         dest_dir = tmp_path / "destination_repo"
 
-        clone_repo(args.context_repo, source_dir, token=args.context_token, label="context repository")
-        clone_repo(args.destination_repo, dest_dir, branch=args.branch, token=args.destination_token, label="destination repository")
+        clone_repo(args.context_repo, source_dir, token=args.context_token, username=args.github_username, label="context repository")
+        clone_repo(args.destination_repo, dest_dir, branch=args.branch, token=args.destination_token, username=args.github_username, label="destination repository")
 
         instructions = (
             f"Convert this repository to {args.destination_stack}. "
