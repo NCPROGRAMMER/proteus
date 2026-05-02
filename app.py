@@ -18,9 +18,17 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 # Configuration
-OLLAMA_URL = "http://ollama:11434/api/generate"
+def _env_or_default(name: str, default: str) -> str:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    stripped = value.strip()
+    return stripped or default
+
+
+OLLAMA_URL = _env_or_default("OLLAMA_URL", "http://ollama:11434/api/generate")
 # 14B is crucial here. 3B struggles to generate multi-file projects consistently.
-MODEL_NAME = "qwen2.5-coder:14b"
+MODEL_NAME = _env_or_default("MODEL_NAME", "qwen2.5-coder:14b")
 MAX_WEB_SNIPPET_CHARS = 320
 
 ALLOWED_EXTENSIONS = {
@@ -315,13 +323,13 @@ async def process_file(
 ):
     filename = os.path.basename(file_path)
     if os.path.splitext(filename)[1].lower() not in ALLOWED_EXTENSIONS:
-        return
+        return True
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
     except Exception:
-        return
+        return False
 
     system_prompt = (
         "You are an expert software architect. "
@@ -382,11 +390,14 @@ async def process_file(
                     f.write(cleaned_code)
                 print(f"✅ Refactored {filename} (Single file update)")
 
+        return True
+
     except Exception as e:
         import traceback
 
         print(f"❌ Error processing {filename}: {type(e).__name__} - {e}")
         traceback.print_exc()
+        return False
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -457,10 +468,12 @@ async def refactor_endpoint(
 
             async def worker(fp, instr, web_ctx, async_client):
                 async with sem:
-                    await process_file(fp, instr, web_ctx, async_client, extract_dir)
+                    return await process_file(fp, instr, web_ctx, async_client, extract_dir)
 
             tasks = [worker(fp, instructions, web_context, client) for fp in files_to_process]
-            await asyncio.gather(*tasks)
+            results = await asyncio.gather(*tasks)
+            if not all(results):
+                return {"error": "One or more files failed during AI conversion. Check logs for details."}
 
         with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as z:
             for root, _, files in os.walk(extract_dir):
