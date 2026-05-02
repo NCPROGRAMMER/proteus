@@ -92,8 +92,9 @@ This repository now includes a workflow at `.github/workflows/repo-converter.yml
 1. Clones the context repo (source).
 2. Clones the destination repo on `main`.
 3. Runs AI conversion across supported files using `github_action_runner.py`.
-4. Replaces destination repo content (excluding `.git`) with converted output.
-5. Commits and pushes to the destination repo `main` branch.
+4. Clears destination repo content before copy (preserves `.git` and existing `README.md`).
+5. Copies converted output into destination repo (source `README.md` is skipped to preserve destination `README.md`).
+6. Commits and pushes to the destination repo `main` branch.
 
 ### Required GitHub Settings
 - Add repo/org variable `OLLAMA_URL` if using a hosted Ollama endpoint.

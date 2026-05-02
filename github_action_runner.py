@@ -8,7 +8,7 @@ from pathlib import Path
 
 import httpx
 
-from app import ALLOWED_EXTENSIONS, process_file
+from app import ALLOWED_EXTENSIONS, OLLAMA_URL, process_file
 
 
 def run(cmd, cwd=None):
@@ -49,13 +49,27 @@ async def convert_repo(source_dir: Path, instructions: str):
                 files_to_process.append(str(fp))
 
     async with httpx.AsyncClient(headers={"User-Agent": "repo-converter-action/1.0"}) as client:
+        results = []
         for fp in files_to_process:
-            await process_file(fp, instructions, None, client, str(source_dir))
+            results.append(await process_file(fp, instructions, None, client, str(source_dir)))
+
+    if not all(results):
+        raise RuntimeError("One or more files failed during AI conversion. Aborting before commit/push.")
+
+
+def reset_destination_repo(dest: Path):
+    for item in dest.iterdir():
+        if item.name in {".git", "README.md"}:
+            continue
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
 
 
 def copy_tree_contents(src: Path, dest: Path):
     for item in src.iterdir():
-        if item.name == ".git":
+        if item.name in {".git", "README.md"}:
             continue
         target = dest / item.name
         if item.is_dir():
@@ -67,6 +81,15 @@ def copy_tree_contents(src: Path, dest: Path):
             shutil.copy2(item, target)
 
 
+
+
+def validate_runtime_configuration():
+    if not (OLLAMA_URL.startswith("http://") or OLLAMA_URL.startswith("https://")):
+        raise ValueError(
+            f"Invalid OLLAMA_URL: '{OLLAMA_URL}'. Set OLLAMA_URL to a full http(s) endpoint, "
+            "for example http://ollama:11434/api/generate."
+        )
+
 def main():
     parser = argparse.ArgumentParser(description="Convert a source repository and publish to a destination repository.")
     parser.add_argument("--context-repo", required=True, help="HTTPS URL of source repository")
@@ -77,6 +100,8 @@ def main():
     parser.add_argument("--context-token", default=os.getenv("CONTEXT_REPO_TOKEN") or os.getenv("GITHUB_TOKEN"), help="Token for cloning context repo (optional for public repos)")
     parser.add_argument("--destination-token", default=os.getenv("DESTINATION_REPO_TOKEN") or os.getenv("GITHUB_TOKEN"), help="Token for destination clone/push")
     args = parser.parse_args()
+
+    validate_runtime_configuration()
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
@@ -92,6 +117,7 @@ def main():
         )
         asyncio.run(convert_repo(source_dir, instructions))
 
+        reset_destination_repo(dest_dir)
         copy_tree_contents(source_dir, dest_dir)
 
         run(["git", "config", "user.name", "github-actions[bot]"], cwd=str(dest_dir))
