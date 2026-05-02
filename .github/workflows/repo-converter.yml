@@ -1,0 +1,46 @@
+name: Repository Converter
+
+on:
+  workflow_dispatch:
+    inputs:
+      context_repo:
+        description: "HTTPS URL of source repository used as conversion context"
+        required: true
+        type: string
+      destination_repo:
+        description: "HTTPS URL of destination repository (output pushed to main)"
+        required: true
+        type: string
+      destination_stack:
+        description: "Target technology stack (for example: Spring Boot, FastAPI, Node.js)"
+        required: true
+        type: string
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout orchestrator repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run repository conversion
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONTEXT_REPO_TOKEN: ${{ secrets.CONTEXT_REPO_TOKEN }}
+          DESTINATION_REPO_TOKEN: ${{ secrets.DESTINATION_REPO_TOKEN }}
+          OLLAMA_URL: ${{ vars.OLLAMA_URL }}
+          MODEL_NAME: ${{ vars.MODEL_NAME }}
+        run: |
+          python github_action_runner.py \
+            --context-repo "${{ inputs.context_repo }}" \
+            --destination-repo "${{ inputs.destination_repo }}" \
+            --destination-stack "${{ inputs.destination_stack }}" \
+            --branch main
