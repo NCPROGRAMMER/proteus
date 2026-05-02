@@ -77,3 +77,27 @@ winpty docker exec -it ollama_backend ollama pull qwen2.5-coder:14b
 -   **Logs:** Run `docker compose logs -f app` to see what the AI is writing in real-time.
 -   **Timeout:** The application is configured to wait indefinitely for the LLM. If you experience network timeouts (e.g. Nginx 504 Gateway Time-out), check your reverse proxy settings.
 -   **Memory:** If the container crashes on large files, try a smaller model like `qwen2.5-coder:7b`.
+
+## GitHub Action (Pipeline-Only, No UI)
+
+This repository now includes a workflow at `.github/workflows/repo-converter.yml` that runs end-to-end conversion in GitHub Actions.
+
+### Workflow Inputs
+- `context_repo`: HTTPS URL of the source repository to use as conversion context.
+- `destination_repo`: HTTPS URL of the destination repository that receives converted code.
+- `destination_stack`: Target technology stack for conversion (for example, `Spring Boot`, `FastAPI`, `Node.js`).
+
+### How It Works
+1. Clones the context repo (source).
+2. Clones the destination repo on `main`.
+3. Runs AI conversion across supported files using `github_action_runner.py`.
+4. Replaces destination repo content (excluding `.git`) with converted output.
+5. Commits and pushes to the destination repo `main` branch.
+
+### Required GitHub Settings
+- Add repo/org variable `OLLAMA_URL` if using a hosted Ollama endpoint.
+- Optional variable `MODEL_NAME` to override the model.
+- Ensure `GITHUB_TOKEN` has permission to push to the destination repository.
+
+### Manual Trigger
+Go to **Actions → Repository Converter → Run workflow** and provide all three inputs.
