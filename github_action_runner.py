@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import os
+import hashlib
 import shutil
 import socket
 import subprocess
@@ -42,21 +43,40 @@ def clone_repo(url: str, target: Path, branch: str | None = None, token: str | N
         ) from exc
 
 
+
+
+def file_sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while True:
+            chunk = f.read(1024 * 1024)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
 async def convert_repo(source_dir: Path, instructions: str):
-    files_to_process = []
+    files_to_process: list[Path] = []
+    original_hashes: dict[Path, str] = {}
     for root, _, files in os.walk(source_dir):
         for filename in files:
             fp = Path(root) / filename
             if fp.suffix.lower() in ALLOWED_EXTENSIONS:
-                files_to_process.append(str(fp))
+                files_to_process.append(fp)
+                original_hashes[fp] = file_sha256(fp)
 
     async with httpx.AsyncClient(headers={"User-Agent": "repo-converter-action/1.0"}) as client:
         results = []
         for fp in files_to_process:
-            results.append(await process_file(fp, instructions, None, client, str(source_dir)))
+            results.append(await process_file(str(fp), instructions, None, client, str(source_dir)))
 
     if not all(results):
         raise RuntimeError("One or more files failed during AI conversion. Aborting before commit/push.")
+
+    # Remove untouched source/context files so only converted output is published.
+    for fp in files_to_process:
+        if fp.exists() and file_sha256(fp) == original_hashes[fp]:
+            fp.unlink()
 
 
 def reset_destination_repo(dest: Path):
