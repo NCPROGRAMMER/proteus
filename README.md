@@ -100,6 +100,7 @@ This repository now includes a workflow at `.github/workflows/repo-converter.yml
 - Add repo/org variable `OLLAMA_URL` if using a hosted Ollama endpoint.
 - Optional variable `MODEL_NAME` to override the model.
 - `GITHUB_TOKEN` is used by default for Git authentication.
+- On GitHub-hosted runners, container-local hosts like `http://ollama:11434` are not reachable unless you run Ollama in the same network context. Use a reachable Ollama endpoint or a self-hosted runner.
 - If either repository is private (or in another org), add:
   - `CONTEXT_REPO_TOKEN` (secret): token that can read the context repo.
   - `DESTINATION_REPO_TOKEN` (secret): token that can read/write the destination repo.

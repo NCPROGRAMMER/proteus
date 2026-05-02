@@ -2,9 +2,11 @@ import argparse
 import asyncio
 import os
 import shutil
+import socket
 import subprocess
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 
@@ -90,6 +92,24 @@ def validate_runtime_configuration():
             "for example http://ollama:11434/api/generate."
         )
 
+
+
+def validate_ollama_reachability():
+    parsed = urlparse(OLLAMA_URL)
+    host = parsed.hostname
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    if not host:
+        raise ValueError(f"Invalid OLLAMA_URL host in '{OLLAMA_URL}'.")
+
+    try:
+        socket.getaddrinfo(host, port)
+    except socket.gaierror as exc:
+        raise RuntimeError(
+            "OLLAMA_URL is not reachable from this runner (DNS resolution failed). "
+            "If you are using GitHub-hosted runners, 'http://ollama:11434' will not resolve. "
+            "Set OLLAMA_URL to a publicly reachable or self-hosted reachable endpoint."
+        ) from exc
+
 def main():
     parser = argparse.ArgumentParser(description="Convert a source repository and publish to a destination repository.")
     parser.add_argument("--context-repo", required=True, help="HTTPS URL of source repository")
@@ -102,6 +122,7 @@ def main():
     args = parser.parse_args()
 
     validate_runtime_configuration()
+    validate_ollama_reachability()
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
