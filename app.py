@@ -18,9 +18,9 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 # Configuration
-OLLAMA_URL = "http://ollama:11434/api/generate"
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434/api/generate")
 # 14B is crucial here. 3B struggles to generate multi-file projects consistently.
-MODEL_NAME = "qwen2.5-coder:14b"
+MODEL_NAME = os.getenv("MODEL_NAME", "qwen2.5-coder:14b")
 MAX_WEB_SNIPPET_CHARS = 320
 
 ALLOWED_EXTENSIONS = {
